@@ -779,3 +779,173 @@ select:focus, .settings-select:focus { border-color: var(--primary); }
 @media (min-width: 901px) and (max-width: 1100px) {
   .main { grid-template-columns: minmax(260px, 320px) 1fr; }
 }
+
+/* ── V1.05 problem cards & motion ── */
+.problem-card {
+  transition: border-color .2s, box-shadow .2s, transform .2s;
+}
+.problem-card.open {
+  border-color: var(--primary);
+  box-shadow: var(--shadow);
+}
+.problem-header {
+  align-items: center;
+}
+.problem-main { flex: 1; min-width: 0; }
+.problem-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.3rem;
+  font-family: var(--font);
+  direction: inherit;
+  text-align: start;
+}
+.status-pill, .conf-pill {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-family: var(--font);
+}
+.status-pill.status-confirmed { background: rgba(16,185,129,.15); color: var(--success); }
+.status-pill.status-likely { background: rgba(59,130,246,.15); color: var(--primary); }
+.status-pill.status-possible { background: rgba(245,158,11,.15); color: var(--warning); }
+.conf-pill {
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+  border: 1px solid var(--border-soft);
+}
+.chevron {
+  width: 18px;
+  height: 18px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  transition: transform .2s ease;
+}
+.problem-card.open .chevron { transform: rotate(180deg); }
+
+.simple-block { padding-top: 0.75rem; }
+.simple-row {
+  margin-bottom: 0.75rem;
+}
+.simple-row .simple-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.simple-row p {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+.simple-row.recommend {
+  background: var(--primary-soft);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.75rem;
+  border-inline-start: 3px solid var(--primary);
+}
+.loc-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  direction: ltr;
+  text-align: start;
+  margin-bottom: 0.5rem;
+}
+.loc-file { overflow: hidden; text-overflow: ellipsis; }
+.loc-line {
+  background: var(--bg-panel);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-soft);
+}
+
+.tech-details {
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 0.5rem;
+}
+.tech-details summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 0.35rem 0;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.tech-details summary::-webkit-details-marker { display: none; }
+.tech-details summary::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-inline-start: 5px solid var(--text-dim);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform .15s;
+}
+.tech-details[open] summary::before {
+  transform: rotate(90deg);
+}
+[dir="rtl"] .tech-details[open] summary::before {
+  transform: rotate(-90deg);
+}
+
+.empty-filter {
+  color: var(--text-dim);
+  padding: 1rem;
+  text-align: center;
+}
+
+.fade-in {
+  animation: fadeInUp .28s ease both;
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.file-item {
+  animation: fadeInUp .2s ease both;
+}
+
+.upload-zone {
+  transition: border-color .2s, background .2s, transform .15s;
+}
+.upload-zone.dragover {
+  transform: scale(1.01);
+}
+
+.progress-fill {
+  transition: width .35s ease;
+}
+
+.settings-overlay {
+  transition: opacity .2s, visibility .2s;
+}
+.settings-panel {
+  transition: transform .28s cubic-bezier(.2,.8,.2,1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Theme switch soft transition */
+html {
+  transition: background-color .2s ease, color .2s ease;
+}

@@ -319,7 +319,7 @@
     if (startBtn) startBtn.disabled = true;
     if (progressWrap) progressWrap.hidden = false;
     if (progressFill) progressFill.style.width = "5%";
-    if (progressText) progressText.textContent = ADi18n.t("analyzing");
+    if (progressText) progressText.textContent = ADi18n.t("statusReading");
     setStatus(ADi18n.t("statusAnalyzing"), "working");
     if (resultsEmpty) resultsEmpty.hidden = true;
     if (resultsContent) resultsContent.hidden = true;
@@ -331,10 +331,19 @@
     }, 200);
 
     try {
-      await new Promise(function (r) { setTimeout(r, 20); });
+      function setProgress(pct, msgKey) {
+        if (progressFill) progressFill.style.width = pct + "%";
+        if (progressText) progressText.textContent = ADi18n.t(msgKey);
+      }
+      setProgress(12, "statusReading");
+      await new Promise(function (r) { setTimeout(r, 30); });
+      setProgress(28, "statusMapping");
       var mapper = new ADProjectMapper.ProjectMapper(projectFiles);
       var graph = mapper.map();
-      await new Promise(function (r) { setTimeout(r, 10); });
+      await new Promise(function (r) { setTimeout(r, 20); });
+      setProgress(45, "statusContext");
+      await new Promise(function (r) { setTimeout(r, 20); });
+      setProgress(60, "statusRules");
 
       var lang = languageSelect ? languageSelect.value : "auto";
       if (lang === "auto") lang = ADUtils.detectLanguage(projectFiles);
@@ -347,6 +356,10 @@
         graph
       );
       var result = engine.run();
+      setProgress(82, "statusValidate");
+      await new Promise(function (r) { setTimeout(r, 15); });
+      setProgress(92, "statusExplain");
+      await new Promise(function (r) { setTimeout(r, 15); });
 
       for (var i = 0; i < Math.min(result.problems.length, 30); i++) {
         var prob = result.problems[i];
@@ -443,32 +456,60 @@
     if (problemCount) problemCount.textContent = filtered.length;
 
     if (!filtered.length) {
-      problemList.innerHTML = '<p style="color:var(--text-dim);padding:1rem;text-align:center">' + ADUtils.escapeHtml(ADi18n.t("noMatch")) + "</p>";
+      problemList.innerHTML = '<p class="empty-filter">' + ADUtils.escapeHtml(ADi18n.t("noMatch")) + "</p>";
       return;
     }
 
     problemList.innerHTML = filtered.map(function (p) {
+      var ruleId = (p.simple && p.simple.id) || p.rule_id || "";
+      var sx = ruleId && ADi18n.simpleExpl ? ADi18n.simpleExpl(ruleId, p.simple || {}) : null;
+      var title = (sx && sx.title && sx.title.indexOf("sx.") !== 0) ? sx.title : p.description;
+      var why = (sx && sx.why && sx.why.indexOf("sx.") !== 0) ? sx.why : p.why_problematic;
+      var evidence = (sx && sx.evidence && sx.evidence.indexOf("sx.") !== 0) ? sx.evidence : (p.evidence || p.detected_behavior);
+      var fix = (sx && sx.fix && sx.fix.indexOf("sx.") !== 0) ? sx.fix : p.recommended_correction_area;
+      var statusLabel = ADi18n.t("status" + (p.status === "CONFIRMED" ? "Confirmed" : p.status === "POSSIBLE" ? "Possible" : "Likely"));
+      var confPct = ((p.confidence != null ? p.confidence : 0.5) * 100) | 0;
+
       return (
-        '<div class="problem-card">' +
-        '<div class="problem-header" onclick="this.parentElement.classList.toggle(\'open\')">' +
+        '<article class="problem-card sev-' + ADUtils.escapeHtml(p.severity) + ' fade-in">' +
+        '<div class="problem-header" data-toggle-card>' +
         '<span class="severity-badge ' + ADUtils.escapeHtml(p.severity) + '">' + ADUtils.escapeHtml(p.severity) + "</span>" +
-        "<div><div class=\"problem-title\">" + ADUtils.escapeHtml(p.description) + "</div>" +
-        '<div class="problem-meta">' + ADUtils.escapeHtml(p.file_name) +
-        (p.line ? " · L" + p.line : "") + " · " + ADUtils.escapeHtml(p.problem_id) +
-        " · " + ADi18n.t("conf") + " " + ((p.confidence * 100) | 0) + "%</div></div></div>" +
-        '<div class="problem-body"><div class="detail-grid">' +
-        '<div class="detail-row"><span class="label">' + ADUtils.escapeHtml(ADi18n.t("rootCause")) + '</span><span class="value">' + ADUtils.escapeHtml(p.root_cause) + "</span></div>" +
-        '<div class="detail-row"><span class="label">' + ADUtils.escapeHtml(ADi18n.t("symptom")) + '</span><span class="value">' + ADUtils.escapeHtml(p.symptom) + "</span></div>" +
-        '<div class="detail-row"><span class="label">' + ADUtils.escapeHtml(ADi18n.t("why")) + '</span><span class="value">' + ADUtils.escapeHtml(p.why_problematic) + "</span></div>" +
-        '<div class="detail-row"><span class="label">' + ADUtils.escapeHtml(ADi18n.t("expected")) + '</span><span class="value">' + ADUtils.escapeHtml(p.expected_behavior) + "</span></div>" +
-        '<div class="detail-row"><span class="label">' + ADUtils.escapeHtml(ADi18n.t("evidence")) + '</span><span class="value code-like">' + ADUtils.escapeHtml(p.evidence || p.detected_behavior) + "</span></div>" +
-        '<div class="detail-row"><span class="label">' + ADUtils.escapeHtml(ADi18n.t("impact")) + '</span><span class="value">' + ADUtils.escapeHtml(p.impact) + "</span></div>" +
-        '<div class="detail-row"><span class="label">' + ADUtils.escapeHtml(ADi18n.t("recommendation")) + '</span><span class="value">' + ADUtils.escapeHtml(p.recommended_correction_area) + "</span></div>" +
-        '<div class="detail-row"><span class="label">' + ADUtils.escapeHtml(ADi18n.t("detectedBy")) + '</span><span class="value">' + ADUtils.escapeHtml(p.test_detected) + "</span></div>" +
+        '<div class="problem-main">' +
+        '<div class="problem-title">' + ADUtils.escapeHtml(title) + "</div>" +
+        '<div class="problem-meta">' +
+        '<span class="status-pill status-' + ADUtils.escapeHtml((p.status || "LIKELY").toLowerCase()) + '">' + ADUtils.escapeHtml(statusLabel) + "</span>" +
+        '<span class="conf-pill">' + ADi18n.t("conf") + " " + confPct + "%</span>" +
+        "</div></div>" +
+        '<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>' +
+        "</div>" +
+        '<div class="problem-body">' +
+        '<div class="simple-block">' +
+        '<div class="simple-row"><span class="simple-label">' + ADUtils.escapeHtml(ADi18n.t("why")) + '</span><p>' + ADUtils.escapeHtml(why) + "</p></div>" +
+        '<div class="simple-row"><span class="simple-label">' + ADUtils.escapeHtml(ADi18n.t("evidence")) + '</span><p>' + ADUtils.escapeHtml(evidence) + "</p></div>" +
+        '<div class="simple-row recommend"><span class="simple-label">' + ADUtils.escapeHtml(ADi18n.t("recommendation")) + '</span><p>' + ADUtils.escapeHtml(fix) + "</p></div>" +
+        '<div class="loc-row"><span class="loc-file">' + ADUtils.escapeHtml(p.file_name) + "</span>" +
+        (p.line ? '<span class="loc-line">L' + p.line + "</span>" : "") +
+        "</div></div>" +
+        '<details class="tech-details">' +
+        "<summary>" + ADUtils.escapeHtml(ADi18n.t("techDetails")) + "</summary>" +
+        '<div class="detail-grid">' +
+        '<div class="detail-row"><span class="label">' + ADUtils.escapeHtml(ADi18n.t("rootCause")) + '</span><span class="value">' + ADUtils.escapeHtml(p.root_cause || "—") + "</span></div>" +
+        '<div class="detail-row"><span class="label">' + ADUtils.escapeHtml(ADi18n.t("expected")) + '</span><span class="value">' + ADUtils.escapeHtml(p.expected_behavior || "—") + "</span></div>" +
+        '<div class="detail-row"><span class="label">' + ADUtils.escapeHtml(ADi18n.t("detectedBy")) + '</span><span class="value">' + ADUtils.escapeHtml(p.test_detected || "—") + "</span></div>" +
         '<div class="detail-row"><span class="label">' + ADUtils.escapeHtml(ADi18n.t("section")) + '</span><span class="value">' + ADUtils.escapeHtml(p.section || "—") + "</span></div>" +
-        "</div></div></div>"
+        '<div class="detail-row"><span class="label">ID</span><span class="value code-like">' + ADUtils.escapeHtml(p.problem_id) + "</span></div>" +
+        "</div></details>" +
+        "</div></article>"
       );
     }).join("");
+
+    var headers = problemList.querySelectorAll("[data-toggle-card]");
+    for (var i = 0; i < headers.length; i++) {
+      headers[i].addEventListener("click", function (e) {
+        if (e.target.closest("details") || e.target.closest("a")) return;
+        this.parentElement.classList.toggle("open");
+      });
+    }
   }
 
   if (document.readyState === "loading") {
