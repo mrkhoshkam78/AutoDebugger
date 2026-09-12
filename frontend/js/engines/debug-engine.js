@@ -1,12 +1,12 @@
+(function(global){
+const { getExt, SUPPORTED_EXTENSIONS, TEST_LEVELS, uid } = global.ADUtils;
 /**
  * Client-side Debug Engine + Test Engine + Root Cause hints
  * Ported & extended from V1 Python AnalyzerEngine.
  * Static analysis only — never executes uploaded code.
  */
 
-import { getExt, SUPPORTED_EXTENSIONS, TEST_LEVELS, uid } from "../lib/utils.js";
-
-export class DebugEngine {
+class DebugEngine {
   constructor(files, language, category, level, projectGraph = null) {
     this.files = files;
     this.language = (language || "auto").toLowerCase();
@@ -487,3 +487,6 @@ export class DebugEngine {
     }
   }
 }
+
+global.ADDebugEngine = { DebugEngine };
+})(typeof window !== 'undefined' ? window : globalThis);
