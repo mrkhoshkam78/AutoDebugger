@@ -1,3 +1,4 @@
+(function(global){
 /**
  * Simple i18n — Auto Debugger V1.02
  * FA / EN, no hard-coded UI strings elsewhere.
@@ -158,7 +159,7 @@ const STRINGS = {
 
 let currentLang = "en";
 
-export function t(key, vars = {}) {
+function t(key, vars = {}) {
   const dict = STRINGS[currentLang] || STRINGS.en;
   let s = dict[key] ?? STRINGS.en[key] ?? key;
   for (const [k, v] of Object.entries(vars)) {
@@ -167,17 +168,17 @@ export function t(key, vars = {}) {
   return s;
 }
 
-export function getLang() {
+function getLang() {
   return currentLang;
 }
 
-export function setLang(lang) {
+function setLang(lang) {
   currentLang = lang === "fa" ? "fa" : "en";
   try { localStorage.setItem("ad_lang", currentLang); } catch {}
   return currentLang;
 }
 
-export function loadLang() {
+function loadLang() {
   try {
     const saved = localStorage.getItem("ad_lang");
     if (saved === "fa" || saved === "en") currentLang = saved;
@@ -185,7 +186,7 @@ export function loadLang() {
   return currentLang;
 }
 
-export function applyI18n(root = document) {
+function applyI18n(root = document) {
   root.querySelectorAll("[data-i18n]").forEach(el => {
     const key = el.getAttribute("data-i18n");
     if (!key) return;
@@ -202,3 +203,6 @@ export function applyI18n(root = document) {
     el.title = t(el.getAttribute("data-i18n-title"));
   });
 }
+
+global.ADi18n = { t: t, getLang: getLang, setLang: setLang, loadLang: loadLang, applyI18n: applyI18n };
+})(typeof window !== 'undefined' ? window : globalThis);

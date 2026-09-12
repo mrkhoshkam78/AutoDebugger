@@ -1,11 +1,11 @@
+(function(global){
+const { getExt, SUPPORTED_EXTENSIONS, detectLanguage } = global.ADUtils;
 /**
  * Client-side Project Mapper
  * Builds an internal project graph: files, languages, imports, refs, structure.
  */
 
-import { getExt, SUPPORTED_EXTENSIONS, detectLanguage } from "./lib/utils.js";
-
-export class ProjectMapper {
+class ProjectMapper {
   constructor(files /* { path: content } */) {
     this.files = files || {};
     this.graph = {
@@ -185,3 +185,6 @@ export class ProjectMapper {
     }
   }
 }
+
+global.ADProjectMapper = { ProjectMapper };
+})(typeof window !== 'undefined' ? window : globalThis);

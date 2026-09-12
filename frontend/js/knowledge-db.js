@@ -1,3 +1,4 @@
+(function(global){
 /**
  * Local Knowledge Database — IndexedDB (offline, no server)
  * Stores previous bugs, patterns, root causes, confidence, frequency.
@@ -29,7 +30,7 @@ function openDB() {
   return dbPromise;
 }
 
-export async function savePattern(entry) {
+async function savePattern(entry) {
   try {
     const db = await openDB();
     return new Promise((resolve, reject) => {
@@ -70,7 +71,7 @@ export async function savePattern(entry) {
   }
 }
 
-export async function queryPatterns({ language, category, limit = 20 } = {}) {
+async function queryPatterns({ language, category, limit = 20 } = {}) {
   try {
     const db = await openDB();
     return new Promise((resolve) => {
@@ -91,7 +92,7 @@ export async function queryPatterns({ language, category, limit = 20 } = {}) {
   }
 }
 
-export async function getStats() {
+async function getStats() {
   try {
     const db = await openDB();
     return new Promise((resolve) => {
@@ -105,7 +106,7 @@ export async function getStats() {
   }
 }
 
-export async function clearKnowledge() {
+async function clearKnowledge() {
   try {
     const db = await openDB();
     return new Promise((resolve) => {
@@ -118,3 +119,6 @@ export async function clearKnowledge() {
     return false;
   }
 }
+
+global.ADKnowledge = { savePattern, queryPatterns, getStats, clearKnowledge };
+})(typeof window !== 'undefined' ? window : globalThis);
