@@ -72,6 +72,7 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  position: relative;
 }
 
 * {
@@ -1163,48 +1164,90 @@ html {
   box-shadow: var(--shadow);
 }
 
-/* ── V3.0 Glass + Global Wave ── */
+/* ── V3.05: Wave + Glass (high specificity, visible) ── */
 .bg-wave {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  overflow: hidden;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
   color: var(--primary);
-  opacity: 0.07;
+  opacity: 1 !important;
 }
 .bg-wave svg {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 200%;
-  height: 45%;
-  min-height: 180px;
+  bottom: -5%;
+  left: -10%;
+  width: 120%;
+  height: 55%;
+  min-height: 220px;
 }
-.bg-wave-p1 { animation: bgWave 28s ease-in-out infinite; }
-.bg-wave-p2 { animation: bgWave 36s ease-in-out infinite reverse; opacity: 0.7; }
+.bg-wave-p1 {
+  fill: var(--primary) !important;
+  opacity: 0.14;
+  animation: bgWave 22s ease-in-out infinite;
+}
+.bg-wave-p2 {
+  fill: #8b5cf6 !important;
+  opacity: 0.1;
+  animation: bgWave 30s ease-in-out infinite reverse;
+}
+[data-theme="light"] .bg-wave-p1 { opacity: 0.12; }
+[data-theme="light"] .bg-wave-p2 { opacity: 0.09; }
 @keyframes bgWave {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(-25%); }
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(-12%, 4px, 0); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .bg-wave-p1, .bg-wave-p2 { animation: none !important; }
+  .bg-wave-p1, .bg-wave-p2, .wave-path { animation: none !important; }
 }
 
-.app, .header, .footer { position: relative; z-index: 1; }
-.main { position: relative; z-index: 1; }
-
-.glass-panel {
-  background: color-mix(in srgb, var(--bg-panel) 78%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
-  box-shadow: var(--shadow-sm), 0 1px 0 color-mix(in srgb, #fff 4%, transparent) inset;
+.app, .header, .footer, .main, .settings-overlay {
+  position: relative;
+  z-index: 1;
 }
 
-[data-theme="light"] .glass-panel {
-  background: color-mix(in srgb, #ffffff 72%, transparent);
-  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+/* Override solid panel backgrounds so glass is actually visible */
+.config-panel.glass-panel,
+.results-panel.glass-panel,
+.settings-panel.glass-panel,
+.final-prompt-section.glass-panel {
+  background: rgba(22, 26, 34, 0.72) !important;
+  backdrop-filter: blur(14px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.2) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+[data-theme="light"] .config-panel.glass-panel,
+[data-theme="light"] .results-panel.glass-panel,
+[data-theme="light"] .settings-panel.glass-panel,
+[data-theme="light"] .final-prompt-section.glass-panel {
+  background: rgba(255, 255, 255, 0.75) !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+}
+
+.problem-card {
+  background: rgba(22, 26, 34, 0.85) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+[data-theme="light"] .problem-card {
+  background: rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06) !important;
+  border: 1px solid rgba(15, 23, 42, 0.06) !important;
+}
+
+.upload-zone {
+  background: rgba(28, 33, 43, 0.65) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.15) !important;
+}
+[data-theme="light"] .upload-zone {
+  background: rgba(255, 255, 255, 0.7) !important;
 }
 
 .header {
@@ -1269,4 +1312,62 @@ html {
   .final-prompt-box { max-height: 240px; font-size: 0.68rem; }
   .level-options { grid-template-columns: repeat(2, 1fr); }
   .bg-wave svg { height: 30%; }
+}
+
+/* Debug progress stages V3.05 */
+.progress-wrap {
+  margin-top: 0.85rem;
+  padding: 0.85rem;
+  border-radius: var(--radius-sm);
+  background: rgba(28, 33, 43, 0.55);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+}
+[data-theme="light"] .progress-wrap {
+  background: rgba(255,255,255,0.7);
+}
+.progress-stages {
+  list-style: none;
+  margin: 0.65rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+.progress-stages li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  transition: color .2s;
+}
+.progress-stages li .stage-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  flex-shrink: 0;
+}
+.progress-stages li.active {
+  color: var(--primary);
+  font-weight: 600;
+}
+.progress-stages li.active .stage-dot {
+  background: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+  animation: pulse 1.2s infinite;
+}
+.progress-stages li.done {
+  color: var(--success);
+}
+.progress-stages li.done .stage-dot {
+  background: var(--success);
+  animation: none;
+}
+.progress-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.35rem;
+  font-family: var(--mono);
 }

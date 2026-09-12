@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="description" content="Auto Debugger — browser-only static analysis" />
-  <title>Auto Debugger V3.0</title>
+  <title>Auto Debugger V3.05</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -35,12 +35,12 @@
     <header class="header">
       <div class="logo">
         <div class="logo-icon" aria-hidden="true">
-          <img src="logo_header.png" alt="" class="logo-img" onerror="this.style.display='none';var f=this.nextElementSibling;if(f)f.style.display='block'" />
+          <img src="media/logo_header.png" alt="" class="logo-img" onerror="this.style.display='none';var f=this.nextElementSibling;if(f)f.style.display='block'" />
           <svg class="logo-fallback" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
         </div>
         <div>
           <h1 data-i18n="appTitle">Auto Debugger</h1>
-          <span class="version" data-i18n="version">V3.0 · Browser-Only</span>
+          <span class="version" data-i18n="version">V3.05 · Browser-Only</span>
         </div>
       </div>
       <div class="header-right">
@@ -155,6 +155,17 @@
         <div class="progress-wrap" id="progressWrap" hidden>
           <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
           <p class="progress-text" id="progressText" data-i18n="analyzing">Analyzing…</p>
+          <p class="progress-meta" id="progressMeta"></p>
+          <ul class="progress-stages" id="progressStages" aria-live="polite">
+            <li data-stage="understand"><span class="stage-dot"></span><span data-i18n="stageUnderstand">Understanding project</span></li>
+            <li data-stage="context"><span class="stage-dot"></span><span data-i18n="stageContext">Mapping context</span></li>
+            <li data-stage="select"><span class="stage-dot"></span><span data-i18n="stageSelect">Selecting strategies</span></li>
+            <li data-stage="ast"><span class="stage-dot"></span><span data-i18n="stageAst">AST parsing</span></li>
+            <li data-stage="analyze"><span class="stage-dot"></span><span data-i18n="stageAnalyze">Running analysis</span></li>
+            <li data-stage="security"><span class="stage-dot"></span><span data-i18n="stageSecurity">Security analysis</span></li>
+            <li data-stage="merge"><span class="stage-dot"></span><span data-i18n="stageMerge">Merging findings</span></li>
+            <li data-stage="report"><span class="stage-dot"></span><span data-i18n="stageReport">Generating report</span></li>
+          </ul>
         </div>
       </section>
 
@@ -212,7 +223,7 @@
     </main>
 
     <footer class="footer">
-      <span data-i18n="footerLeft">V3.0 · Static analysis · No auto-fix</span>
+      <span data-i18n="footerLeft">V3.05 · Static analysis · No auto-fix</span>
       <span data-i18n="footerRight">Offline · IndexedDB · Safe</span>
     </footer>
   </div>
@@ -247,6 +258,7 @@
   <script src="js/lib/utils.js"></script>
   <script src="js/i18n.js"></script>
   <script src="js/strategies.js"></script>
+  <script src="js/ast.js"></script>
   <script src="js/project-mapper.js"></script>
   <script src="js/knowledge-db.js"></script>
   <script src="js/results-store.js"></script>

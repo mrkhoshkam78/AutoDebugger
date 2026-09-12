@@ -17,7 +17,7 @@
   function $(s) { return document.querySelector(s); }
 
   var uploadZone, fileInput, browseBtn, fileList, languageSelect, categorySelect,
-      levelSelect, levelDesc, startBtn, progressWrap, progressFill, progressText,
+      levelSelect, levelDesc, startBtn, progressWrap, progressFill, progressText, progressMeta, progressStages,
       headerStatus, resultsEmpty, resultsContent, summaryCards, testList,
       problemList, problemCount, filters, severityFilter, fileFilter, categoryFilter,
       settingsOverlay, settingsBtn, settingsClose, clearAllBtn, uploadMeta, uploadProjectName, finalPromptSection, finalPromptBox, copyPromptBtn;
@@ -38,6 +38,8 @@
     progressWrap = $("#progressWrap");
     progressFill = $("#progressFill");
     progressText = $("#progressText");
+    progressMeta = $("#progressMeta");
+    progressStages = $("#progressStages");
     headerStatus = $("#headerStatus");
     resultsEmpty = $("#resultsEmpty");
     resultsContent = $("#resultsContent");
@@ -517,6 +519,76 @@
     }
   }
 
+
+  function setStageProgress(pct, stage, detail) {
+    if (progressFill) progressFill.style.width = Math.max(0, Math.min(100, pct)) + "%";
+    if (progressText && detail) progressText.textContent = detail;
+    if (progressMeta) progressMeta.textContent = detail || "";
+    if (!progressStages) return;
+    var order = ["understand","context","select","ast","analyze","security","merge","report"];
+    var idx = order.indexOf(stage);
+    var items = progressStages.querySelectorAll("li");
+    for (var i = 0; i < items.length; i++) {
+      var s = items[i].getAttribute("data-stage");
+      var si = order.indexOf(s);
+      items[i].classList.remove("active", "done");
+      if (si >= 0 && si < idx) items[i].classList.add("done");
+      else if (si === idx) items[i].classList.add("active");
+    }
+  }
+
+  function runAnalysisInWorker(files, language, category, level) {
+    return new Promise(function (resolve, reject) {
+      var worker;
+      try {
+        worker = new Worker("js/worker/analysis-worker.js");
+      } catch (e) {
+        reject(e);
+        return;
+      }
+      var finished = false;
+      worker.onmessage = function (ev) {
+        var msg = ev.data || {};
+        if (msg.type === "progress") {
+          setStageProgress(msg.percent || 0, msg.stage, msg.detail || "");
+        } else if (msg.type === "result") {
+          finished = true;
+          try { worker.terminate(); } catch (e) {}
+          resolve(msg.result);
+        } else if (msg.type === "error") {
+          finished = true;
+          try { worker.terminate(); } catch (e) {}
+          reject(new Error(msg.message || "Worker error"));
+        }
+      };
+      worker.onerror = function (err) {
+        if (finished) return;
+        try { worker.terminate(); } catch (e) {}
+        reject(err && err.message ? err : new Error("Worker failed"));
+      };
+      worker.postMessage({ type: "analyze", files: files, language: language, category: category, level: level });
+    });
+  }
+
+  function runAnalysisMain(files, language, category, level) {
+    setStageProgress(10, "understand", "Understanding project");
+    var graph = new ADProjectMapper.ProjectMapper(files).map();
+    setStageProgress(20, "context", "Mapping context");
+    var astMap = null;
+    if (globalThis.ADAst) {
+      setStageProgress(30, "ast", "AST parsing");
+      astMap = ADAst.analyzeProject(files);
+    }
+    setStageProgress(40, "select", "Selecting strategies");
+    var engine = new ADDebugEngine.DebugEngine(files, language, category, level, graph);
+    if (astMap) engine.astMap = astMap;
+    setStageProgress(55, "analyze", "Running analysis");
+    var result = engine.run();
+    setStageProgress(75, "security", "Security analysis · " + (result.strategies_count || 0) + " strategies");
+    setStageProgress(90, "merge", "Merging findings");
+    return result;
+  }
+
   async function startAnalysis() {
     if (isAnalyzing || !Object.keys(projectFiles).length) return;
     isAnalyzing = true;
@@ -534,45 +606,26 @@
     }, 200);
 
     try {
-      function setProgress(pct, msgKey) {
-        if (progressFill) progressFill.style.width = pct + "%";
-        if (progressText) progressText.textContent = ADi18n.t(msgKey);
-      }
-      setProgress(12, "statusReading");
-      await new Promise(function (r) { setTimeout(r, 30); });
-      setProgress(28, "statusMapping");
-      var mapper = new ADProjectMapper.ProjectMapper(projectFiles);
-      var graph = mapper.map();
-      await new Promise(function (r) { setTimeout(r, 20); });
-      setProgress(45, "statusContext");
-      await new Promise(function (r) { setTimeout(r, 20); });
-      setProgress(55, "statusRules");
-      var lvlNow = parseInt((document.getElementById("levelValue") || { value: "1" }).value, 10);
-
       var lang = languageSelect ? languageSelect.value : "auto";
       if (lang === "auto") lang = ADUtils.detectLanguage(projectFiles);
+      var cat = categorySelect ? categorySelect.value : "Code / Logic";
+      var lvl = parseInt((document.getElementById("levelValue") || levelSelect || { value: "1" }).value, 10);
 
-      var engine = new ADDebugEngine.DebugEngine(
-        projectFiles,
-        lang,
-        categorySelect ? categorySelect.value : "Code / Logic",
-        parseInt((document.getElementById("levelValue") || levelSelect || { value: "1" }).value, 10),
-        graph
-      );
-      var result = engine.run();
+      var result;
+      try {
+        result = await runAnalysisInWorker(projectFiles, lang, cat, lvl);
+      } catch (workerErr) {
+        console.warn("Worker fallback:", workerErr);
+        result = runAnalysisMain(projectFiles, lang, cat, lvl);
+      }
       result.pipeline = result.pipeline || [
         "Project Understanding", "Context Mapping", "Strategy Selection",
-        "Static Analysis", "Evidence Correlation", "Root Cause",
+        "AST Parsing", "Static Analysis", "Evidence Correlation", "Root Cause",
         "False Positive Reduction", "Finding Merge", "Confidence",
         "Explanation", "Final Report"
       ];
-      if (result.strategies_count) {
-        if (progressText) progressText.textContent = ADi18n.t("strategiesRun") + ": " + result.strategies_count;
-      }
-      setProgress(82, "statusValidate");
-      await new Promise(function (r) { setTimeout(r, 15); });
-      setProgress(92, "statusExplain");
-      await new Promise(function (r) { setTimeout(r, 15); });
+      setStageProgress(100, "report", ADi18n.t("strategiesRun") + ": " + (result.strategies_count || 0));
+      await new Promise(function (r) { setTimeout(r, 20); });
 
       for (var i = 0; i < Math.min(result.problems.length, 30); i++) {
         var prob = result.problems[i];
