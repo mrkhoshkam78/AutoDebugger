@@ -1,5 +1,5 @@
 /**
- * Auto Debugger V2.0 — Strategy-driven, context-aware engine
+ * Auto Debugger V5.0 — Evidence-driven (Candidate → finalizeFinding)
  */
 (function (global) {
   "use strict";
@@ -107,6 +107,26 @@
 
   DebugEngine.prototype._add = function (severity, file, line, section, description, why, expected, detected, recommendation, strategy, extras) {
     extras = extras || {};
+    // V5.0: Rule → Candidate → finalizeFinding (Evidence + Context + Validation + Confidence)
+    if (typeof ADStandards !== "undefined" && ADStandards.finalizeFinding && ADStandards.createCandidateFromAdd) {
+      var candidate = ADStandards.createCandidateFromAdd(
+        severity, file, line, section, description, why, expected, detected, recommendation, strategy, extras, this.ctx
+      );
+      // Prefer engine category when strategy category empty
+      if (!candidate.category) candidate.category = this.category;
+      var finding = ADStandards.finalizeFinding(candidate, this.ctx);
+      if (!finding) return; // DO_NOT_REPORT / NOT_APPLICABLE / failed gate
+      this.counter++;
+      finding.problem_id = "P" + String(this.counter).padStart(4, "0");
+      finding.test_level = this.level;
+      if (!finding.category) finding.category = this.category;
+      if (!finding.related_categories || !finding.related_categories.length) {
+        finding.related_categories = [finding.category || this.category];
+      }
+      this.problems.push(finding);
+      return;
+    }
+    // Legacy fallback (no ADStandards)
     var confidence = extras.confidence != null ? extras.confidence : 0.75;
     if (confidence < 0.55 && severity === "critical") severity = "high";
     if (confidence < 0.4 && (severity === "critical" || severity === "high")) severity = "medium";
@@ -139,6 +159,22 @@
       test_level: this.level,
       simple: extras.simple || { id: (extras.simpleId || ruleId || "").toLowerCase().replace(/[^a-z0-9_]+/g, "_") }
     });
+  };
+
+  /** Explicit candidate emission API for migrated rules */
+  DebugEngine.prototype._emitCandidate = function (candidateOpts) {
+    if (typeof ADStandards === "undefined" || !ADStandards.finalizeFinding) {
+      return;
+    }
+    var candidate = ADStandards.createCandidate(candidateOpts || {});
+    if (!candidate.category) candidate.category = this.category;
+    candidate.context = this.ctx;
+    var finding = ADStandards.finalizeFinding(candidate, this.ctx);
+    if (!finding) return;
+    this.counter++;
+    finding.problem_id = "P" + String(this.counter).padStart(4, "0");
+    finding.test_level = this.level;
+    this.problems.push(finding);
   };
 
   DebugEngine.prototype._countSeverity = function () {
