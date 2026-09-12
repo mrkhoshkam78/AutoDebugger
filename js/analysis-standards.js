@@ -1,6 +1,6 @@
 /**
- * Auto Debugger V5.0 — Analysis Standards
- * Evidence-driven pipeline: Candidate → Context → Evidence → Validation → Confidence → Finding
+ * Auto Debugger V6.0 — Analysis Standards
+ * Evidence-driven pipeline: Candidate → Context → Evidence → Validation → Flow → RootCause → Confidence → FP Filter → Finding
  * Browser-only. No server.
  */
 (function (global) {
@@ -403,6 +403,32 @@
       return (e.explanation || e.snippet || "").toString();
     }).filter(Boolean).join(" | ") || candidate.detected || "";
 
+    // V6: Root-cause separation (symptom ≠ root)
+    var symptom = candidate.symptom || candidate.description || "";
+    var rootCause = candidate.rootCause || candidate.why || candidate.recommendation || "";
+    if (rootCause === candidate.recommendation) {
+      // Prefer why / detected as root when recommendation was used as fallback
+      rootCause = candidate.why || candidate.detected || rootCause;
+    }
+
+    // Lightweight hypothesis for complex / low-evidence cases
+    var hypotheses = [];
+    if (score < 75 || (candidate.flags && candidate.flags.heuristicOnly)) {
+      hypotheses.push({
+        description: "Primary interpretation: " + (candidate.description || "issue"),
+        supportingEvidence: evidence.slice(0, 3),
+        contradictingEvidence: validation.contradictions || [],
+        confidence: score / 100,
+        validationMethod: "static-context",
+        status: status
+      });
+    }
+
+    var flow = candidate.metadata && candidate.metadata.flow ? candidate.metadata.flow : [];
+    if (!flow.length && evidence.some(function (e) { return (e.type || "") === "dataflow"; })) {
+      flow = evidence.filter(function (e) { return (e.type || "") === "dataflow"; });
+    }
+
     return {
       // Compatible with existing Results Store / UI
       severity: severity,
@@ -410,18 +436,24 @@
       category: candidate.category || "",
       file_name: candidate.file,
       line: candidate.line || 1,
+      endLine: candidate.endLine || candidate.line || 1,
       section: candidate.section || "",
       description: candidate.description,
+      problem: candidate.description,
       why_problematic: candidate.why,
       expected_behavior: candidate.expected,
       detected_behavior: candidate.detected,
       recommended_correction_area: candidate.recommendation,
+      recommendation: candidate.recommendation,
       test_detected: candidate.strategyId || candidate.ruleId || "strategy",
-      root_cause: candidate.rootCause || candidate.recommendation,
-      symptom: candidate.symptom || candidate.description,
+      root_cause: rootCause,
+      rootCause: rootCause,
+      symptom: symptom,
       evidence: evidenceSummary,
       evidence_list: evidence,
       validation: validation.validations || [],
+      flow: flow,
+      hypotheses: hypotheses,
       impact: candidate.impact || severity,
       confidence: Math.round(score) / 100,
       confidence_score: score,
@@ -431,7 +463,7 @@
       related_categories: candidate.category ? [candidate.category] : [],
       simple: { id: (candidate.simpleId || candidate.ruleId || "").toLowerCase().replace(/[^a-z0-9_]+/g, "_") },
       // Pipeline metadata
-      pipeline: "V5_CANDIDATE_FINALIZE"
+      pipeline: "V6_EVIDENCE_DRIVEN"
     };
   }
 
