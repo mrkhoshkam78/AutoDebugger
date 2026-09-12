@@ -74,6 +74,12 @@
     this.testResults[0].problems_found = this.problems.length;
 
     return {
+      pipelineStages: [
+        "1:Project Understanding", "2:Context Mapping", "3:Strategy Selection",
+        "4:Static Analysis", "5:Evidence Correlation", "6:Root Cause",
+        "7:False Positive Reduction", "8:Finding Merge", "9:Confidence",
+        "10:Explanation", "11:Final Report"
+      ],
       problems: this.problems,
       skipped: this.skipped,
       strategies_run: this.strategiesRun,
