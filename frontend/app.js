@@ -10,6 +10,8 @@
   var fileMeta = [];
   var allProblems = [];
   var currentProjectKey = "default";
+  var analysisState = "none"; // none | done | error
+  var lastUploadLabel = "";
   var isAnalyzing = false;
 
   function $(s) { return document.querySelector(s); }
@@ -18,7 +20,7 @@
       levelSelect, levelDesc, startBtn, progressWrap, progressFill, progressText,
       headerStatus, resultsEmpty, resultsContent, summaryCards, testList,
       problemList, problemCount, filters, severityFilter, fileFilter, categoryFilter,
-      settingsOverlay, settingsBtn, settingsClose;
+      settingsOverlay, settingsBtn, settingsClose, clearAllBtn, uploadMeta, uploadProjectName;
 
   var LEVEL_KEYS = { 1: "level1Desc", 2: "level2Desc", 3: "level3Desc" };
 
@@ -49,10 +51,13 @@
     settingsOverlay = $("#settingsOverlay");
     settingsBtn = $("#settingsBtn");
     settingsClose = $("#settingsClose");
+    clearAllBtn = $("#clearAllBtn");
+    uploadMeta = $("#uploadMeta");
+    uploadProjectName = $("#uploadProjectName");
   }
 
   function loadTheme() {
-    var theme = "dark";
+    var theme = "light";
     try {
       var s = localStorage.getItem("ad_theme");
       if (s === "light" || s === "dark") theme = s;
@@ -76,7 +81,10 @@
     ADi18n.applyI18n(document);
     updateLevelDesc();
     renderFileList();
-    if (allProblems.length) renderProblems();
+    if (analysisState === "done" || allProblems.length) {
+      setResultsView("done");
+      renderResults({ summary: { total_problems: allProblems.length, files_analyzed: Object.keys(projectFiles) }, test_results: [] });
+    }
     syncSettingsUI();
     if (headerStatus && !isAnalyzing) {
       var statusSpan = headerStatus.querySelector("span:not(.dot)");
@@ -107,6 +115,118 @@
     state = state || "idle";
     if (!headerStatus) return;
     headerStatus.innerHTML = '<span class="dot ' + state + '"></span><span>' + ADUtils.escapeHtml(text) + "</span>";
+  }
+
+  function setResultsView(mode) {
+    // mode: none | done | empty_done | error | analyzing
+    if (!resultsEmpty || !resultsContent) return;
+    if (mode === "analyzing") {
+      resultsEmpty.hidden = true;
+      resultsContent.hidden = true;
+      return;
+    }
+    if (mode === "none") {
+      analysisState = "none";
+      resultsEmpty.hidden = false;
+      resultsContent.hidden = true;
+      if (filters) filters.hidden = true;
+      resultsEmpty.innerHTML =
+        '<div class="empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></div>' +
+        "<h3>" + ADUtils.escapeHtml(ADi18n.t("noAnalysis")) + "</h3>" +
+        "<p>" + ADUtils.escapeHtml(ADi18n.t("noAnalysisHint")) + "</p>";
+      return;
+    }
+    if (mode === "error") {
+      analysisState = "error";
+      resultsEmpty.hidden = false;
+      resultsContent.hidden = true;
+      return;
+    }
+    // done (with or without findings)
+    analysisState = "done";
+    resultsEmpty.hidden = true;
+    resultsContent.hidden = false;
+    if (filters) filters.hidden = false;
+  }
+
+
+  function updateUploadMeta(label) {
+    lastUploadLabel = label || "";
+    if (!uploadMeta || !uploadProjectName) return;
+    if (!lastUploadLabel && !fileMeta.length) {
+      uploadMeta.hidden = true;
+      uploadProjectName.textContent = "";
+      uploadProjectName.removeAttribute("title");
+      return;
+    }
+    var name = lastUploadLabel || (fileMeta[0] && fileMeta[0].name) || "";
+    uploadMeta.hidden = false;
+    uploadProjectName.textContent = name;
+    uploadProjectName.setAttribute("title", name);
+  }
+
+  function clearAllFiles() {
+    projectFiles = {};
+    fileMeta = [];
+    lastUploadLabel = "";
+    if (fileInput) fileInput.value = "";
+    renderFileList();
+    updateUploadMeta("");
+    if (startBtn) startBtn.disabled = true;
+    setStatus(ADi18n.t("statusReady"), "idle");
+    // Keep analysis results (do not clear allProblems)
+  }
+
+  function copyFinding(p) {
+    var sx = (p.simple && p.simple.id && ADi18n.simpleExpl) ? ADi18n.simpleExpl(p.simple.id, p.simple) : null;
+    var lines = [
+      "Problem: " + (sx && sx.title && sx.title.indexOf("sx.") !== 0 ? sx.title : p.description),
+      "Severity: " + (p.severity || ""),
+      "Status: " + (p.status || ""),
+      "Category: " + (p.category || ""),
+      "Confidence: " + (((p.confidence || 0) * 100) | 0) + "%",
+      "File: " + (p.file_name || "") + (p.line ? " (L" + p.line + ")" : ""),
+      "",
+      "Why: " + (sx && sx.why && sx.why.indexOf("sx.") !== 0 ? sx.why : (p.why_problematic || "")),
+      "Evidence: " + (sx && sx.evidence && sx.evidence.indexOf("sx.") !== 0 ? sx.evidence : (p.evidence || "")),
+      "Recommendation: " + (sx && sx.fix && sx.fix.indexOf("sx.") !== 0 ? sx.fix : (p.recommended_correction_area || "")),
+      "",
+      "Root cause: " + (p.root_cause || ""),
+      "Strategies: " + ((p.detecting_strategies || []).join(", ") || p.test_detected || ""),
+      "ID: " + (p.stable_id || p.problem_id || "")
+    ];
+    var text = lines.join("\n");
+    function ok() {
+      var tip = document.getElementById("copyToast");
+      if (!tip) {
+        tip = document.createElement("div");
+        tip.id = "copyToast";
+        tip.className = "copy-toast";
+        document.body.appendChild(tip);
+      }
+      tip.textContent = ADi18n.t("copied");
+      tip.classList.add("show");
+      setTimeout(function () { tip.classList.remove("show"); }, 1400);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(ok).catch(function () {
+        fallbackCopy(text); ok();
+      });
+    } else {
+      fallbackCopy(text); ok();
+    }
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(ta);
   }
 
   function init() {
@@ -156,23 +276,45 @@
     if (categoryFilter) categoryFilter.addEventListener("change", renderProblems);
 
     // Settings panel
+    function openSettings(open) {
+      if (!settingsOverlay) return;
+      if (open) {
+        settingsOverlay.classList.add("open");
+        if (settingsBtn) {
+          settingsBtn.classList.add("is-open");
+          settingsBtn.setAttribute("aria-expanded", "true");
+        }
+        syncSettingsUI();
+      } else {
+        settingsOverlay.classList.remove("open");
+        if (settingsBtn) {
+          settingsBtn.classList.remove("is-open");
+          settingsBtn.setAttribute("aria-expanded", "false");
+        }
+      }
+    }
     if (settingsBtn && settingsOverlay) {
       settingsBtn.addEventListener("click", function (e) {
         e.preventDefault();
         e.stopPropagation();
-        settingsOverlay.classList.add("open");
-        syncSettingsUI();
+        openSettings(!settingsOverlay.classList.contains("open"));
       });
     }
     if (settingsClose && settingsOverlay) {
       settingsClose.addEventListener("click", function (e) {
         e.preventDefault();
-        settingsOverlay.classList.remove("open");
+        openSettings(false);
       });
     }
     if (settingsOverlay) {
       settingsOverlay.addEventListener("click", function (e) {
-        if (e.target === settingsOverlay) settingsOverlay.classList.remove("open");
+        if (e.target === settingsOverlay) openSettings(false);
+      });
+    }
+    if (clearAllBtn) {
+      clearAllBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        clearAllFiles();
       });
     }
 
@@ -199,14 +341,23 @@
 
     try {
       var files = Array.prototype.slice.call(fileListObj);
+      if (files.length === 1) lastUploadLabel = files[0].name;
+      else if (files.length > 1) lastUploadLabel = files.length + " files";
       for (var i = 0; i < files.length; i++) {
         var file = files[i];
-        if (file.name.toLowerCase().endsWith(".zip")) await extractZip(file);
-        else await readSingleFile(file);
+        if (file.name.toLowerCase().endsWith(".zip")) {
+          lastUploadLabel = file.name;
+          await extractZip(file);
+        } else await readSingleFile(file);
       }
       if (!Object.keys(projectFiles).length) throw new Error(ADi18n.t("noReadable"));
       renderFileList();
       if (startBtn) startBtn.disabled = false;
+      // Label: prefer ZIP name if present in last selection
+      var label = lastUploadLabel;
+      if (!label && fileMeta.length === 1) label = fileMeta[0].name;
+      else if (!label && fileMeta.length > 1) label = fileMeta.length + " files";
+      updateUploadMeta(label);
       currentProjectKey = ADResultsStore.projectKeyFromFiles(projectFiles);
       try {
         var prev = await ADResultsStore.loadFindings(currentProjectKey);
@@ -332,8 +483,7 @@
     if (progressFill) progressFill.style.width = "5%";
     if (progressText) progressText.textContent = ADi18n.t("statusReading");
     setStatus(ADi18n.t("statusAnalyzing"), "working");
-    if (resultsEmpty) resultsEmpty.hidden = true;
-    if (resultsContent) resultsContent.hidden = true;
+    setResultsView("analyzing");
 
     var p = 5;
     var tick = setInterval(function () {
@@ -398,14 +548,15 @@
       result.summary.total_problems = allProblems.length;
       result.summary.strategies_run = result.strategies_count || 0;
       renderResults(result);
+      setResultsView("done");
       setStatus(ADi18n.t("statusDone") + " · " + allProblems.length + " · " + (result.strategies_count || 0) + " strat.", "idle");
     } catch (err) {
       clearInterval(tick);
       console.error(err);
       if (progressText) progressText.textContent = err.message;
       setStatus(ADi18n.t("statusError"), "error");
+      setResultsView("error");
       if (resultsEmpty) {
-        resultsEmpty.hidden = false;
         resultsEmpty.innerHTML =
           '<div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div>' +
           "<h3>" + ADUtils.escapeHtml(ADi18n.t("analysisFailed")) + "</h3>" +
@@ -421,12 +572,15 @@
   }
 
   function renderResults(result) {
-    if (resultsEmpty) resultsEmpty.hidden = true;
-    if (resultsContent) resultsContent.hidden = false;
-    if (filters) filters.hidden = false;
+    setResultsView("done");
 
     var summary = result.summary || {};
     var bySev = summary.by_severity || {};
+    if (!bySev || typeof bySev !== "object") bySev = {};
+    // recompute severity counts from allProblems (persistent)
+    bySev = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
+    allProblems.forEach(function (p) { bySev[p.severity] = (bySev[p.severity] || 0) + 1; });
+
 
     if (summaryCards) {
       summaryCards.innerHTML =
@@ -473,6 +627,9 @@
 
     if (problemCount) problemCount.textContent = allProblems.length;
     renderProblems();
+    if (!allProblems.length && problemList) {
+      problemList.innerHTML = '<p class="empty-filter analyzed-empty">' + ADUtils.escapeHtml(ADi18n.t("analyzedNoFindings")) + "</p>";
+    }
   }
 
   function renderProblems() {
@@ -496,7 +653,7 @@
       return;
     }
 
-    problemList.innerHTML = filtered.map(function (p) {
+    problemList.innerHTML = filtered.map(function (p, i) {
       var ruleId = (p.simple && p.simple.id) || p.rule_id || "";
       var sx = ruleId && ADi18n.simpleExpl ? ADi18n.simpleExpl(ruleId, p.simple || {}) : null;
       var title = (sx && sx.title && sx.title.indexOf("sx.") !== 0) ? sx.title : p.description;
@@ -525,6 +682,9 @@
         '<div class="simple-row recommend"><span class="simple-label">' + ADUtils.escapeHtml(ADi18n.t("recommendation")) + '</span><p>' + ADUtils.escapeHtml(fix) + "</p></div>" +
         '<div class="loc-row"><span class="loc-file">' + ADUtils.escapeHtml(p.file_name) + "</span>" +
         (p.line ? '<span class="loc-line">L' + p.line + "</span>" : "") +
+        '<button type="button" class="btn secondary btn-sm copy-btn" data-copy-idx="' + i + '">' +
+        '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg> ' +
+        ADUtils.escapeHtml(ADi18n.t("copy")) + "</button>" +
         "</div></div>" +
         '<details class="tech-details">' +
         "<summary>" + ADUtils.escapeHtml(ADi18n.t("techDetails")) + "</summary>" +
@@ -540,10 +700,19 @@
     }).join("");
 
     var headers = problemList.querySelectorAll("[data-toggle-card]");
-    for (var i = 0; i < headers.length; i++) {
-      headers[i].addEventListener("click", function (e) {
-        if (e.target.closest("details") || e.target.closest("a")) return;
+    for (var hi = 0; hi < headers.length; hi++) {
+      headers[hi].addEventListener("click", function (e) {
+        if (e.target.closest("details") || e.target.closest("a") || e.target.closest("button")) return;
         this.parentElement.classList.toggle("open");
+      });
+    }
+    var copyBtns = problemList.querySelectorAll("[data-copy-idx]");
+    for (var ci = 0; ci < copyBtns.length; ci++) {
+      copyBtns[ci].addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var idx = parseInt(this.getAttribute("data-copy-idx"), 10);
+        if (!isNaN(idx) && filtered[idx]) copyFinding(filtered[idx]);
       });
     }
   }
