@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Auto Debugger V1.1 — Browser-Only Static Analysis</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <div class="logo-icon">⚡</div>
+        <div>
+          <h1>Auto Debugger</h1>
+          <span class="version">V1.1 · Browser-Only · Offline-First</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <span class="local-badge" id="localBadge">Local · No server</span>
+        <div class="header-status" id="headerStatus">
+          <span class="dot idle"></span>
+          <span>Ready</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="main">
+      <!-- Left Panel: Upload & Config -->
+      <section class="panel config-panel">
+        <div class="panel-header">
+          <h2>1. Project Upload</h2>
+        </div>
+
+        <div class="upload-zone" id="uploadZone">
+          <div class="upload-icon">📁</div>
+          <p class="upload-title">Drop files or ZIP here</p>
+          <p class="upload-hint">HTML · CSS · JS · TS · Python · Java · C/C++ · PHP · JSON · ZIP — processed entirely in your browser</p>
+          <input type="file" id="fileInput" multiple accept=".html,.htm,.css,.js,.mjs,.ts,.tsx,.jsx,.json,.py,.java,.c,.cpp,.h,.hpp,.php,.rb,.go,.rs,.md,.txt,.xml,.yml,.yaml,.zip" />
+          <button class="btn secondary" id="browseBtn">Browse files</button>
+        </div>
+
+        <div class="file-list" id="fileList">
+          <p class="empty-state">No files loaded yet</p>
+        </div>
+
+        <div class="panel-header" style="margin-top:1.5rem">
+          <h2>2. Configuration</h2>
+        </div>
+
+        <div class="form-grid">
+          <label>
+            <span>Programming Language</span>
+            <select id="languageSelect">
+              <option value="auto">Auto-detect</option>
+              <option value="html">HTML</option>
+              <option value="css">CSS</option>
+              <option value="javascript">JavaScript</option>
+              <option value="typescript">TypeScript</option>
+              <option value="python">Python</option>
+              <option value="java">Java</option>
+              <option value="c">C / C++</option>
+              <option value="php">PHP</option>
+              <option value="json">JSON</option>
+              <option value="other">Other / Generic</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Debug Category</span>
+            <select id="categorySelect">
+              <option value="Code / Logic">Code / Logic</option>
+              <option value="UI">UI</option>
+              <option value="UX">UX</option>
+              <option value="Performance">Performance</option>
+              <option value="Syntax">Syntax</option>
+              <option value="Security">Security</option>
+              <option value="Responsive behavior">Responsive behavior</option>
+              <option value="Structure / Architecture">Structure / Architecture</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Test Level</span>
+            <select id="levelSelect">
+              <option value="1">Level 1 — Quick Test</option>
+              <option value="2">Level 2 — Full Check</option>
+              <option value="3">Level 3 — Deep Check</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="level-desc" id="levelDesc">
+          Fast syntax & structural checks. Fully local — nothing leaves your browser.
+        </div>
+
+        <button class="btn primary full" id="startBtn" disabled>
+          <span class="btn-icon">▶</span> Start Local Debug Analysis
+        </button>
+
+        <div class="progress-wrap" id="progressWrap" hidden>
+          <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+          <p class="progress-text" id="progressText">Analyzing…</p>
+        </div>
+      </section>
+
+      <!-- Right Panel: Results -->
+      <section class="panel results-panel">
+        <div class="panel-header">
+          <h2>3. Results Dashboard</h2>
+          <div class="filters" id="filters" hidden>
+            <select id="severityFilter">
+              <option value="all">All severities</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+              <option value="info">Info</option>
+            </select>
+            <select id="fileFilter">
+              <option value="all">All files</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="resultsEmpty" class="empty-results">
+          <div class="empty-icon">🔍</div>
+          <h3>No analysis yet</h3>
+          <p>Load source files locally, choose language & category, then run a debug level.<br>All processing happens in your browser — no server upload.</p>
+        </div>
+
+        <div id="resultsContent" hidden>
+          <div class="summary-cards" id="summaryCards"></div>
+          <div class="section">
+            <h3>Test Execution</h3>
+            <div class="test-list" id="testList"></div>
+          </div>
+          <div class="section">
+            <h3>Detected Problems <span class="badge" id="problemCount">0</span></h3>
+            <div class="problem-list" id="problemList"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Auto Debugger V1.1 · Browser-only · No automatic code modification · Static analysis only</span>
+      <span>Offline-capable · IndexedDB knowledge · Safe non-executing analysis</span>
+    </footer>
+  </div>
+
+  <!-- JSZip for client-side ZIP extraction (vendored) -->
+  <script src="js/lib/jszip.min.js"></script>
+  <!-- App as ES module -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
