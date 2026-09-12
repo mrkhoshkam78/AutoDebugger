@@ -5,6 +5,7 @@ var BASE = self.location.href.replace(/[^/]+$/, "");
 try {
   importScripts(
     BASE + "../lib/utils.js",
+    BASE + "../analysis-standards.js",
     BASE + "../strategies.js",
     BASE + "../project-mapper.js",
     BASE + "../ast.js",
