@@ -1,17 +1,20 @@
-# Auto Debugger V2.05
+# Auto Debugger V3.05
 
 Browser-only static analysis debugger.
 
 ## Run
 Open `index.html` in a browser, or deploy this folder to **GitHub Pages**.
 
+No server, no install, offline-first.
+
 ## Levels
-| Level | Strategies |
-|-------|------------|
+| Level | Strategies (approx.) |
+|-------|----------------------|
 | Quick | ≤ 5 |
-| Full | ≤ 15 |
-| Deep | 30–50 |
-| Special | 150–200 (context-applicable) |
+| Full | 10–15 |
+| Deep | 25–35 |
+| Special | 50–80 context-applicable |
+| Test All | all applicable strategies |
 
 ## Structure
 ```
@@ -19,7 +22,12 @@ auto-debugger/
   index.html
   styles.css
   app.js
+  media/
   js/
-  samples/
-  README.md
+    analysis-standards.js
+    ast.js
+    strategies.js
+    engines/debug-engine.js
+    worker/analysis-worker.js
+    ...
 ```
