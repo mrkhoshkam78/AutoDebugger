@@ -55,6 +55,11 @@
     if (!this.astMap && globalThis.ADAst) {
       try { this.astMap = ADAst.analyzeProject(this.files); } catch (e) { this.astMap = null; }
     }
+    // V6: Build Code Model + Data-Flow
+    this.codeModel = null;
+    if (this.astMap && globalThis.ADAst && typeof ADAst.buildCodeModel === "function") {
+      try { this.codeModel = ADAst.buildCodeModel(this.files, this.astMap); } catch (e) { this.codeModel = null; }
+    }
 
     this.testResults = [{
       level: this.level,
@@ -358,7 +363,6 @@ jsDotSpace: function (s) {
       secEval: function (s) {
         self._eachFile(["javascript", "typescript", "html"], function (fname, content) {
           if (typeof ADStandards !== "undefined" && ADStandards.shouldSkipSecurityKeywordScan(fname)) return;
-          // Strip strings & comments to reduce false positives (e.g. docs matching eval() text)
           var code = content
             .replace(/\/\*[\s\S]*?\*\//g, "")
             .replace(/\/\/[^\n]*/g, "")
@@ -366,18 +370,100 @@ jsDotSpace: function (s) {
             .replace(/'(?:\\.|[^\\'])*'/g, "''")
             .replace(/"(?:\\.|[^\\"])*"/g, '""')
             .replace(/`(?:\\.|[^\\`])*`/g, "``");
-          if (/\beval\s*\(/i.test(code)) {
-            self._add("high", fname, 1, "security", "Use of eval()", "Security risk with untrusted input.", "Avoid eval with untrusted data.", "eval call in code", "Use safer alternatives.", s,
-              { confidence: 0.9, status: "CONFIRMED", simpleId: "sec_eval" });
+          if (!/\beval\s*\(/i.test(code)) return;
+          var flows = [];
+          if (self.codeModel && globalThis.ADAst && ADAst.findFlowsForSink) {
+            try { flows = ADAst.findFlowsForSink(self.codeModel, fname, "eval", null) || []; } catch (e) {}
+          }
+          var line = 1;
+          var idx = content.search(/\beval\s*\(/);
+          if (idx >= 0) line = content.slice(0, idx).split("\n").length;
+          if (flows.length && !(flows[0].weak)) {
+            var f0 = flows[0];
+            var srcKind = (f0.source && f0.source.kind) || "user-input";
+            self._add("critical", fname, line, "security",
+              "eval() reachable from " + srcKind,
+              "Untrusted data can reach eval → arbitrary code execution.",
+              "Never pass user/URL/storage data to eval; use safe parsing.",
+              "SOURCE(" + srcKind + ") → eval()",
+              "Remove eval or hard-block untrusted inputs.", s,
+              {
+                confidence: 0.92,
+                status: "CONFIRMED",
+                simpleId: "sec_eval_flow",
+                evidence: [
+                  { file: fname, line: (f0.source && f0.source.line) || line, type: "dataflow", snippet: (f0.source && f0.source.evidence) || srcKind, explanation: "Source: " + srcKind },
+                  { file: fname, line: line, type: "dataflow", snippet: "eval(", explanation: "Sink: eval" }
+                ],
+                root_cause: "User-controlled or external data flows into eval()",
+                symptom: "Dynamic code execution with potentially untrusted input",
+                impact: "Remote code execution / XSS"
+              });
+          } else {
+            self._add("high", fname, line, "security", "Use of eval()",
+              "eval executes strings as code; dangerous if any input is untrusted.",
+              "Avoid eval; use JSON.parse or structured APIs.",
+              "eval call in executable code",
+              "Replace with safer alternatives.", s,
+              {
+                confidence: 0.72,
+                status: "LIKELY",
+                simpleId: "sec_eval",
+                evidence: [{ file: fname, line: line, type: "ast", snippet: "eval(", explanation: "Sink present; no proven source→sink path" }],
+                root_cause: "Dynamic code execution via eval",
+                symptom: "eval() call in code",
+                impact: "Potential RCE if input is attacker-controlled"
+              });
           }
         });
       },
       secInnerHTML: function (s) {
         self._eachFile(["javascript", "typescript", "html"], function (fname, content) {
           if (typeof ADStandards !== "undefined" && ADStandards.shouldSkipSecurityKeywordScan(fname)) return;
-          if (/innerHTML\s*=/i.test(content)) {
-            self._add("high", fname, 1, "security", "innerHTML assignment", "XSS risk if data is untrusted.", "textContent or sanitize.", "innerHTML =", "Prefer safer APIs.", s,
-              { confidence: 0.75, status: "LIKELY", simpleId: "sec_innerhtml" });
+          if (!/innerHTML\s*=/i.test(content)) return;
+          var flows = [];
+          if (self.codeModel && globalThis.ADAst && ADAst.findFlowsForSink) {
+            try { flows = ADAst.findFlowsForSink(self.codeModel, fname, "innerHTML", null) || []; } catch (e) {}
+          }
+          var line = 1;
+          var idx = content.search(/innerHTML\s*=/);
+          if (idx >= 0) line = content.slice(0, idx).split("\n").length;
+          if (flows.length && !(flows[0].weak)) {
+            var f0 = flows[0];
+            var srcKind = (f0.source && f0.source.kind) || "user-input";
+            self._add("critical", fname, line, "security",
+              "innerHTML assignment fed by " + srcKind,
+              "Untrusted data written to DOM via innerHTML enables XSS.",
+              "Use textContent or a sanitizer (e.g. DOMPurify).",
+              "SOURCE(" + srcKind + ") → innerHTML",
+              "Sanitize or avoid innerHTML for untrusted data.", s,
+              {
+                confidence: 0.9,
+                status: "CONFIRMED",
+                simpleId: "sec_innerhtml_flow",
+                evidence: [
+                  { file: fname, line: (f0.source && f0.source.line) || line, type: "dataflow", snippet: (f0.source && f0.source.evidence) || srcKind, explanation: "Source: " + srcKind },
+                  { file: fname, line: line, type: "dataflow", snippet: "innerHTML =", explanation: "Sink: innerHTML" }
+                ],
+                root_cause: "User/URL/storage/network data reaches innerHTML without sanitization",
+                symptom: "DOM XSS sink with proven source",
+                impact: "Cross-site scripting"
+              });
+          } else {
+            self._add("high", fname, line, "security", "innerHTML assignment",
+              "XSS risk if the assigned value is untrusted.",
+              "Prefer textContent or sanitize HTML.",
+              "innerHTML =",
+              "Prefer safer APIs.", s,
+              {
+                confidence: 0.7,
+                status: "LIKELY",
+                simpleId: "sec_innerhtml",
+                evidence: [{ file: fname, line: line, type: "ast", snippet: "innerHTML =", explanation: "Sink present; flow not fully proven" }],
+                root_cause: "Unsafe DOM write API",
+                symptom: "innerHTML assignment",
+                impact: "Potential XSS"
+              });
           }
         });
       },
