@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Auto Debugger V1.1 — Browser-Only Static Analysis</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="Auto Debugger — browser-only static analysis" />
+  <title>Auto Debugger V1.02</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -11,52 +12,57 @@
 </head>
 <body>
   <div class="app">
-    <!-- Header -->
     <header class="header">
       <div class="logo">
-        <div class="logo-icon">⚡</div>
+        <div class="logo-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </div>
         <div>
-          <h1>Auto Debugger</h1>
-          <span class="version">V1.1 · Browser-Only · Offline-First</span>
+          <h1 data-i18n="appTitle">Auto Debugger</h1>
+          <span class="version" data-i18n="version">V1.02 · Browser-Only</span>
         </div>
       </div>
       <div class="header-right">
-        <span class="local-badge" id="localBadge">Local · No server</span>
+        <span class="local-badge" id="localBadge" data-i18n="localBadge">Local · Offline</span>
         <div class="header-status" id="headerStatus">
           <span class="dot idle"></span>
-          <span>Ready</span>
+          <span data-i18n="statusReady">Ready</span>
         </div>
+        <button type="button" class="icon-btn" id="settingsBtn" data-i18n-title="settings" title="Settings" aria-label="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </button>
       </div>
     </header>
 
     <main class="main">
-      <!-- Left Panel: Upload & Config -->
       <section class="panel config-panel">
         <div class="panel-header">
-          <h2>1. Project Upload</h2>
+          <h2 data-i18n="uploadTitle">1. Project</h2>
         </div>
 
         <div class="upload-zone" id="uploadZone">
-          <div class="upload-icon">📁</div>
-          <p class="upload-title">Drop files or ZIP here</p>
-          <p class="upload-hint">HTML · CSS · JS · TS · Python · Java · C/C++ · PHP · JSON · ZIP — processed entirely in your browser</p>
+          <div class="upload-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <p class="upload-title" data-i18n="dropTitle">Drop files or ZIP</p>
+          <p class="upload-hint" data-i18n="dropHint">HTML · CSS · JS · TS · Python · Java · C/C++ · PHP · JSON · ZIP</p>
           <input type="file" id="fileInput" multiple accept=".html,.htm,.css,.js,.mjs,.ts,.tsx,.jsx,.json,.py,.java,.c,.cpp,.h,.hpp,.php,.rb,.go,.rs,.md,.txt,.xml,.yml,.yaml,.zip" />
-          <button class="btn secondary" id="browseBtn">Browse files</button>
+          <button type="button" class="btn secondary" id="browseBtn" data-i18n="browse">Browse</button>
         </div>
 
         <div class="file-list" id="fileList">
-          <p class="empty-state">No files loaded yet</p>
+          <p class="empty-state" data-i18n="noFiles">No files yet</p>
         </div>
 
-        <div class="panel-header" style="margin-top:1.5rem">
-          <h2>2. Configuration</h2>
+        <div class="panel-header" style="margin-top:1.25rem">
+          <h2 data-i18n="configTitle">2. Configuration</h2>
         </div>
 
         <div class="form-grid">
           <label>
-            <span>Programming Language</span>
+            <span data-i18n="langLabel">Language</span>
             <select id="languageSelect">
-              <option value="auto">Auto-detect</option>
+              <option value="auto" data-i18n="autoDetect">Auto-detect</option>
               <option value="html">HTML</option>
               <option value="css">CSS</option>
               <option value="javascript">JavaScript</option>
@@ -66,81 +72,81 @@
               <option value="c">C / C++</option>
               <option value="php">PHP</option>
               <option value="json">JSON</option>
-              <option value="other">Other / Generic</option>
+              <option value="other">Other</option>
             </select>
           </label>
 
           <label>
-            <span>Debug Category</span>
+            <span data-i18n="categoryLabel">Category</span>
             <select id="categorySelect">
-              <option value="Code / Logic">Code / Logic</option>
-              <option value="UI">UI</option>
-              <option value="UX">UX</option>
-              <option value="Performance">Performance</option>
-              <option value="Syntax">Syntax</option>
-              <option value="Security">Security</option>
-              <option value="Responsive behavior">Responsive behavior</option>
-              <option value="Structure / Architecture">Structure / Architecture</option>
+              <option value="Code / Logic" data-i18n="catCode">Code / Logic</option>
+              <option value="UI" data-i18n="catUI">UI</option>
+              <option value="UX" data-i18n="catUX">UX</option>
+              <option value="Performance" data-i18n="catPerf">Performance</option>
+              <option value="Syntax" data-i18n="catSyntax">Syntax</option>
+              <option value="Security" data-i18n="catSec">Security</option>
+              <option value="Responsive behavior" data-i18n="catResp">Responsive</option>
+              <option value="Structure / Architecture" data-i18n="catStruct">Structure / Architecture</option>
             </select>
           </label>
 
           <label>
-            <span>Test Level</span>
+            <span data-i18n="levelLabel">Test level</span>
             <select id="levelSelect">
-              <option value="1">Level 1 — Quick Test</option>
-              <option value="2">Level 2 — Full Check</option>
-              <option value="3">Level 3 — Deep Check</option>
+              <option value="1" data-i18n="lvl1">Level 1 — Quick</option>
+              <option value="2" data-i18n="lvl2">Level 2 — Full</option>
+              <option value="3" data-i18n="lvl3">Level 3 — Deep</option>
             </select>
           </label>
         </div>
 
-        <div class="level-desc" id="levelDesc">
-          Fast syntax & structural checks. Fully local — nothing leaves your browser.
-        </div>
+        <div class="level-desc" id="levelDesc" data-i18n="level1Desc">Quick syntax & structure checks. Fully local.</div>
 
-        <button class="btn primary full" id="startBtn" disabled>
-          <span class="btn-icon">▶</span> Start Local Debug Analysis
+        <button type="button" class="btn primary full" id="startBtn" disabled>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          <span data-i18n="startBtn">Start analysis</span>
         </button>
 
         <div class="progress-wrap" id="progressWrap" hidden>
           <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-          <p class="progress-text" id="progressText">Analyzing…</p>
+          <p class="progress-text" id="progressText" data-i18n="analyzing">Analyzing…</p>
         </div>
       </section>
 
-      <!-- Right Panel: Results -->
       <section class="panel results-panel">
         <div class="panel-header">
-          <h2>3. Results Dashboard</h2>
+          <h2 data-i18n="resultsTitle">3. Results</h2>
           <div class="filters" id="filters" hidden>
             <select id="severityFilter">
-              <option value="all">All severities</option>
-              <option value="critical">Critical</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-              <option value="info">Info</option>
+              <option value="all" data-i18n="allSeverities">All severities</option>
+              <option value="critical" data-i18n="critical">Critical</option>
+              <option value="high" data-i18n="high">High</option>
+              <option value="medium" data-i18n="medium">Medium</option>
+              <option value="low" data-i18n="low">Low</option>
+              <option value="info" data-i18n="info">Info</option>
             </select>
             <select id="fileFilter">
-              <option value="all">All files</option>
+              <option value="all" data-i18n="allFiles">All files</option>
             </select>
           </div>
         </div>
 
         <div id="resultsEmpty" class="empty-results">
-          <div class="empty-icon">🔍</div>
-          <h3>No analysis yet</h3>
-          <p>Load source files locally, choose language & category, then run a debug level.<br>All processing happens in your browser — no server upload.</p>
+          <div class="empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          </div>
+          <h3 data-i18n="noAnalysis">No analysis yet</h3>
+          <p data-i18n="noAnalysisHint">Load files, set options, then run analysis. Everything stays in your browser.</p>
         </div>
 
         <div id="resultsContent" hidden>
           <div class="summary-cards" id="summaryCards"></div>
           <div class="section">
-            <h3>Test Execution</h3>
+            <h3 data-i18n="testExec">Tests</h3>
             <div class="test-list" id="testList"></div>
           </div>
           <div class="section">
-            <h3>Detected Problems <span class="badge" id="problemCount">0</span></h3>
+            <h3><span data-i18n="problems">Problems</span> <span class="badge" id="problemCount">0</span></h3>
             <div class="problem-list" id="problemList"></div>
           </div>
         </div>
@@ -148,14 +154,38 @@
     </main>
 
     <footer class="footer">
-      <span>Auto Debugger V1.1 · Browser-only · No automatic code modification · Static analysis only</span>
-      <span>Offline-capable · IndexedDB knowledge · Safe non-executing analysis</span>
+      <span data-i18n="footerLeft">V1.02 · Static analysis · No auto-fix</span>
+      <span data-i18n="footerRight">Offline · IndexedDB · Safe</span>
     </footer>
   </div>
 
-  <!-- JSZip for client-side ZIP extraction (vendored) -->
+  <!-- Settings -->
+  <div class="settings-overlay" id="settingsOverlay">
+    <div class="settings-panel" role="dialog" aria-labelledby="settingsTitle">
+      <div class="settings-header">
+        <h2 id="settingsTitle" data-i18n="settings">Settings</h2>
+        <button type="button" class="icon-btn" id="settingsClose" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="settings-group">
+        <span data-i18n="settingsLang">UI language</span>
+        <div class="settings-row">
+          <button type="button" id="langEnBtn" data-lang="en">English</button>
+          <button type="button" id="langFaBtn" data-lang="fa">فارسی</button>
+        </div>
+      </div>
+      <div class="settings-group">
+        <span data-i18n="settingsTheme">Theme</span>
+        <div class="settings-row">
+          <button type="button" id="themeDarkBtn" data-theme-set="dark" data-i18n="themeDark">Dark</button>
+          <button type="button" id="themeLightBtn" data-theme-set="light" data-i18n="themeLight">Light</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="js/lib/jszip.min.js"></script>
-  <!-- App as ES module -->
   <script type="module" src="app.js"></script>
 </body>
 </html>
