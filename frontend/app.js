@@ -9,6 +9,7 @@
   var projectFiles = {};
   var fileMeta = [];
   var allProblems = [];
+  var currentProjectKey = "default";
   var isAnalyzing = false;
 
   function $(s) { return document.querySelector(s); }
@@ -16,7 +17,7 @@
   var uploadZone, fileInput, browseBtn, fileList, languageSelect, categorySelect,
       levelSelect, levelDesc, startBtn, progressWrap, progressFill, progressText,
       headerStatus, resultsEmpty, resultsContent, summaryCards, testList,
-      problemList, problemCount, filters, severityFilter, fileFilter,
+      problemList, problemCount, filters, severityFilter, fileFilter, categoryFilter,
       settingsOverlay, settingsBtn, settingsClose;
 
   var LEVEL_KEYS = { 1: "level1Desc", 2: "level2Desc", 3: "level3Desc" };
@@ -44,6 +45,7 @@
     filters = $("#filters");
     severityFilter = $("#severityFilter");
     fileFilter = $("#fileFilter");
+    categoryFilter = $("#categoryFilter");
     settingsOverlay = $("#settingsOverlay");
     settingsBtn = $("#settingsBtn");
     settingsClose = $("#settingsClose");
@@ -151,6 +153,7 @@
     if (startBtn) startBtn.addEventListener("click", startAnalysis);
     if (severityFilter) severityFilter.addEventListener("change", renderProblems);
     if (fileFilter) fileFilter.addEventListener("change", renderProblems);
+    if (categoryFilter) categoryFilter.addEventListener("change", renderProblems);
 
     // Settings panel
     if (settingsBtn && settingsOverlay) {
@@ -204,6 +207,14 @@
       if (!Object.keys(projectFiles).length) throw new Error(ADi18n.t("noReadable"));
       renderFileList();
       if (startBtn) startBtn.disabled = false;
+      currentProjectKey = ADResultsStore.projectKeyFromFiles(projectFiles);
+      try {
+        var prev = await ADResultsStore.loadFindings(currentProjectKey);
+        if (prev && prev.length) {
+          allProblems = prev;
+          renderResults({ summary: { total_problems: prev.length, by_severity: {}, files_analyzed: Object.keys(projectFiles) }, test_results: [], problems: prev });
+        }
+      } catch (e) {}
       setStatus(ADi18n.t("localReady", { n: fileMeta.length }), "idle");
     } catch (err) {
       if (fileList) {
@@ -379,9 +390,15 @@
       if (progressFill) progressFill.style.width = "100%";
       if (progressText) progressText.textContent = ADi18n.t("statusDone");
 
-      allProblems = result.problems || [];
+      var incoming = result.problems || [];
+      currentProjectKey = ADResultsStore.projectKeyFromFiles(projectFiles);
+      allProblems = ADResultsStore.mergeFindings(allProblems, incoming, currentProjectKey);
+      try { await ADResultsStore.saveFindings(currentProjectKey, allProblems); } catch (e) {}
+      result.summary = result.summary || {};
+      result.summary.total_problems = allProblems.length;
+      result.summary.strategies_run = result.strategies_count || 0;
       renderResults(result);
-      setStatus(ADi18n.t("statusDone") + " · " + allProblems.length, "idle");
+      setStatus(ADi18n.t("statusDone") + " · " + allProblems.length + " · " + (result.strategies_count || 0) + " strat.", "idle");
     } catch (err) {
       clearInterval(tick);
       console.error(err);
@@ -432,12 +449,25 @@
         : '<div class="test-item"><span class="name">—</span></div>';
     }
 
-    var files = summary.files_analyzed || [];
+    var files = summary.files_analyzed || Object.keys(projectFiles);
     if (fileFilter) {
       fileFilter.innerHTML =
         '<option value="all">' + ADUtils.escapeHtml(ADi18n.t("allFiles")) + "</option>" +
         files.map(function (f) {
           return '<option value="' + ADUtils.escapeHtml(f) + '">' + ADUtils.escapeHtml(f) + "</option>";
+        }).join("");
+    }
+    if (categoryFilter) {
+      var cats = {};
+      allProblems.forEach(function (p) {
+        cats[p.category] = 1;
+        (p.related_categories || []).forEach(function (c) { cats[c] = 1; });
+      });
+      var catKeys = Object.keys(cats);
+      categoryFilter.innerHTML =
+        '<option value="all">' + ADUtils.escapeHtml(ADi18n.t("allCategories")) + "</option>" +
+        catKeys.map(function (c) {
+          return '<option value="' + ADUtils.escapeHtml(c) + '">' + ADUtils.escapeHtml(c) + "</option>";
         }).join("");
     }
 
@@ -449,9 +479,15 @@
     if (!problemList) return;
     var sev = severityFilter ? severityFilter.value : "all";
     var file = fileFilter ? fileFilter.value : "all";
+    var cat = categoryFilter ? categoryFilter.value : "all";
     var filtered = allProblems;
     if (sev !== "all") filtered = filtered.filter(function (p) { return p.severity === sev; });
     if (file !== "all") filtered = filtered.filter(function (p) { return p.file_name === file; });
+    if (cat !== "all") filtered = filtered.filter(function (p) {
+      if (p.category === cat) return true;
+      var rel = p.related_categories || [];
+      return rel.indexOf(cat) !== -1;
+    });
 
     if (problemCount) problemCount.textContent = filtered.length;
 
@@ -495,7 +531,7 @@
         '<div class="detail-grid">' +
         '<div class="detail-row"><span class="label">' + ADUtils.escapeHtml(ADi18n.t("rootCause")) + '</span><span class="value">' + ADUtils.escapeHtml(p.root_cause || "—") + "</span></div>" +
         '<div class="detail-row"><span class="label">' + ADUtils.escapeHtml(ADi18n.t("expected")) + '</span><span class="value">' + ADUtils.escapeHtml(p.expected_behavior || "—") + "</span></div>" +
-        '<div class="detail-row"><span class="label">' + ADUtils.escapeHtml(ADi18n.t("detectedBy")) + '</span><span class="value">' + ADUtils.escapeHtml(p.test_detected || "—") + "</span></div>" +
+        '<div class="detail-row"><span class="label">' + ADUtils.escapeHtml(ADi18n.t("detectedBy")) + '</span><span class="value">' + ADUtils.escapeHtml((p.detecting_strategies && p.detecting_strategies.join(', ')) || p.test_detected || "—") + "</span></div>" +
         '<div class="detail-row"><span class="label">' + ADUtils.escapeHtml(ADi18n.t("section")) + '</span><span class="value">' + ADUtils.escapeHtml(p.section || "—") + "</span></div>" +
         '<div class="detail-row"><span class="label">ID</span><span class="value code-like">' + ADUtils.escapeHtml(p.problem_id) + "</span></div>" +
         "</div></details>" +
