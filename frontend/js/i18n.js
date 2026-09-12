@@ -1,5 +1,5 @@
 /**
- * i18n V1.05 — UI strings + simple explanations (FA / EN)
+ * i18n V2.0 — UI strings + simple explanations (FA / EN)
  */
 (function (global) {
   "use strict";
@@ -7,7 +7,7 @@
   var STRINGS = {
     en: {
       appTitle: "Auto Debugger",
-      version: "V1.05 · Browser-Only",
+      version: "V2.0 · Browser-Only",
       localBadge: "Local · Offline",
       statusReady: "Ready",
       statusReading: "Reading files…",
@@ -61,7 +61,7 @@
       langEn: "English",
       langFa: "فارسی",
       deleteFile: "Remove",
-      footerLeft: "V1.05 · Context-aware · Clear explanations",
+      footerLeft: "V2.0 · Context-aware · Clear explanations",
       footerRight: "Offline · Safe · No auto-fix",
       level1Desc: "Quick syntax & structure. Context-aware.",
       level2Desc: "Relations, UI/UX depth. Fewer false positives.",
@@ -75,6 +75,11 @@
       catSec: "Security",
       catResp: "Responsive",
       catStruct: "Structure / Architecture",
+      catTestAll: "Test All",
+      allCategories: "All categories",
+      strategiesRun: "Strategies run",
+      clearResults: "Clear results",
+
       lvl1: "Level 1 — Quick",
       lvl2: "Level 2 — Full",
       lvl3: "Level 3 — Deep",
@@ -202,7 +207,7 @@
     },
     fa: {
       appTitle: "دیباگر خودکار",
-      version: "V1.05 · فقط مرورگر",
+      version: "V2.0 · فقط مرورگر",
       localBadge: "محلی · آفلاین",
       statusReady: "آماده",
       statusReading: "در حال خواندن فایل‌ها…",
@@ -256,7 +261,7 @@
       langEn: "English",
       langFa: "فارسی",
       deleteFile: "حذف",
-      footerLeft: "V1.05 · آگاه به زمینه · توضیح ساده",
+      footerLeft: "V2.0 · آگاه به زمینه · توضیح ساده",
       footerRight: "آفلاین · امن · بدون اصلاح خودکار",
       level1Desc: "بررسی سریع نحو و ساختار با درک زمینه.",
       level2Desc: "روابط و عمق UI/UX با خطای مثبت کمتر.",
@@ -270,6 +275,10 @@
       catSec: "امنیت",
       catResp: "ریسپانسیو",
       catStruct: "ساختار / معماری",
+      catTestAll: "تست همه",
+      allCategories: "همه دسته‌ها",
+      strategiesRun: "استراتژی‌های اجراشده",
+      clearResults: "پاک‌کردن نتایج",
       lvl1: "سطح ۱ — سریع",
       lvl2: "سطح ۲ — کامل",
       lvl3: "سطح ۳ — عمیق",
