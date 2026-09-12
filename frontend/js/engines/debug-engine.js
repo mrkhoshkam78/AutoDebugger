@@ -266,8 +266,16 @@
       },
       secEval: function (s) {
         self._eachFile(["javascript", "typescript", "html"], function (fname, content) {
-          if (/eval\s*\(/i.test(content)) {
-            self._add("high", fname, 1, "security", "Use of eval()", "Security risk with untrusted input.", "Avoid eval.", "eval( found", "Remove eval.", s,
+          // Strip strings & comments to reduce false positives (e.g. docs matching eval() text)
+          var code = content
+            .replace(/\/\*[\s\S]*?\*\//g, "")
+            .replace(/\/\/[^\n]*/g, "")
+            .replace(/\/(?:\\.|[^\\/])+\/[gimsuy]*/g, " ")
+            .replace(/'(?:\\.|[^\\'])*'/g, "''")
+            .replace(/"(?:\\.|[^\\"])*"/g, '""')
+            .replace(/`(?:\\.|[^\\`])*`/g, "``");
+          if (/\beval\s*\(/i.test(code)) {
+            self._add("high", fname, 1, "security", "Use of eval()", "Security risk with untrusted input.", "Avoid eval with untrusted data.", "eval call in code", "Use safer alternatives.", s,
               { confidence: 0.9, status: "CONFIRMED", simpleId: "sec_eval" });
           }
         });
