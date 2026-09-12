@@ -73,6 +73,9 @@
       }
     }
 
+    if (typeof ADStandards !== "undefined" && ADStandards.postValidateFindings) {
+      this.problems = ADStandards.postValidateFindings(this.problems);
+    }
     this.testResults[0].status = "completed";
     this.testResults[0].problems_found = this.problems.length;
 
@@ -182,8 +185,21 @@
           }
         });
       },
-      jsBalance: function (s) {
+            jsBalance: function (s) {
         self._eachFile(["javascript", "typescript"], function (fname, content) {
+          if (typeof ADStandards !== "undefined" && ADStandards.isVendorFile(fname)) return;
+          if (typeof ADStandards !== "undefined") {
+            var bal = ADStandards.countDelimiters(content);
+            if (!bal.balanced) {
+              var delta = Math.abs(bal.paren) + Math.abs(bal.bracket) + Math.abs(bal.brace);
+              if (delta < 1) return;
+              self._add("high", fname, 1, "structure", "Unbalanced braces/parentheses", "Usually causes parse errors.", "Balanced delimiters.",
+                "Dparen=" + bal.paren + " Dbracket=" + bal.bracket + " Dbrace=" + bal.brace,
+                "Fix matching brackets.", s,
+                { confidence: delta >= 2 ? 0.88 : 0.72, status: delta >= 2 ? "CONFIRMED" : "LIKELY", simpleId: "js_unbalanced" });
+            }
+            return;
+          }
           var o = (content.match(/[{[(]/g) || []).length;
           var c = (content.match(/[}\])]/g) || []).length;
           if (o !== c) {
@@ -192,7 +208,7 @@
           }
         });
       },
-      jsDotSpace: function (s) {
+jsDotSpace: function (s) {
         self._eachFile(["javascript", "typescript"], function (fname, content) {
           if (/\.\s+\(/.test(content)) {
             self._add("medium", fname, 1, "syntax", "Malformed method call", "Space between . and ( is invalid.", "obj.method()", "Found '. ('", "Remove the space.", s,
@@ -224,6 +240,16 @@
       },
       pyBalance: function (s) {
         self._eachFile(["python"], function (fname, content) {
+          if (typeof ADStandards !== "undefined") {
+            var bal = ADStandards.countDelimiters(content);
+            if (!bal.balanced) {
+              self._add("high", fname, 1, "structure", "Unbalanced brackets (Python)", "Causes SyntaxError.", "Balanced.",
+                "Dparen=" + bal.paren + " Dbracket=" + bal.bracket + " Dbrace=" + bal.brace,
+                "Balance brackets.", s,
+                { confidence: 0.85, status: "CONFIRMED", simpleId: "py_unbalanced" });
+            }
+            return;
+          }
           var o = (content.match(/[{[(]/g) || []).length;
           var c = (content.match(/[}\])]/g) || []).length;
           if (o !== c) {
@@ -261,6 +287,15 @@
       },
       cssBalance: function (s) {
         self._eachFile(["css"], function (fname, content) {
+          if (typeof ADStandards !== "undefined") {
+            var bal = ADStandards.countDelimiters(content);
+            if (!bal.balanced) {
+              self._add("high", fname, 1, "css", "Unbalanced CSS braces", "Breaks cascade.", "Equal braces.",
+                "Dbrace=" + bal.brace, "Balance braces.", s,
+                { confidence: 0.9, status: "CONFIRMED", simpleId: "css_unbalanced" });
+            }
+            return;
+          }
           var o = (content.match(/\{/g) || []).length, c = (content.match(/\}/g) || []).length;
           if (o !== c) {
             self._add("high", fname, 1, "css", "Unbalanced CSS braces", "Breaks cascade.", "Equal { }.", o + " vs " + c, "Balance braces.", s,
@@ -286,6 +321,7 @@
       },
       secEval: function (s) {
         self._eachFile(["javascript", "typescript", "html"], function (fname, content) {
+          if (typeof ADStandards !== "undefined" && ADStandards.shouldSkipSecurityKeywordScan(fname)) return;
           // Strip strings & comments to reduce false positives (e.g. docs matching eval() text)
           var code = content
             .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -302,6 +338,7 @@
       },
       secInnerHTML: function (s) {
         self._eachFile(["javascript", "typescript", "html"], function (fname, content) {
+          if (typeof ADStandards !== "undefined" && ADStandards.shouldSkipSecurityKeywordScan(fname)) return;
           if (/innerHTML\s*=/i.test(content)) {
             self._add("high", fname, 1, "security", "innerHTML assignment", "XSS risk if data is untrusted.", "textContent or sanitize.", "innerHTML =", "Prefer safer APIs.", s,
               { confidence: 0.75, status: "LIKELY", simpleId: "sec_innerhtml" });
@@ -310,6 +347,7 @@
       },
       secDocWrite: function (s) {
         self._eachFile(["javascript", "typescript", "html"], function (fname, content) {
+          if (typeof ADStandards !== "undefined" && ADStandards.shouldSkipSecurityKeywordScan(fname)) return;
           if (/document\.write\s*\(/i.test(content)) {
             self._add("high", fname, 1, "security", "document.write()", "Unsafe with untrusted data.", "DOM methods.", "document.write(", "Replace.", s,
               { confidence: 0.8, status: "LIKELY", simpleId: "sec_docwrite" });
@@ -318,6 +356,7 @@
       },
       secPassword: function (s) {
         self._eachFile(null, function (fname, content) {
+          if (typeof ADStandards !== "undefined" && ADStandards.shouldSkipSecurityKeywordScan(fname)) return;
           if (/password\s*=\s*["'][^"']+["']/i.test(content)) {
             self._add("high", fname, 1, "security", "Hardcoded password-like string", "Secrets can leak.", "External secrets.", "password = '...'", "Move out of source.", s,
               { confidence: 0.7, status: "LIKELY", simpleId: "sec_password" });
@@ -326,6 +365,7 @@
       },
       secApiKey: function (s) {
         self._eachFile(null, function (fname, content) {
+          if (typeof ADStandards !== "undefined" && ADStandards.shouldSkipSecurityKeywordScan(fname)) return;
           if (/api[_-]?key\s*=\s*["'][^"']+["']/i.test(content)) {
             self._add("high", fname, 1, "security", "Hardcoded API key", "Keys can be abused.", "Env/config.", "api_key =", "Externalize.", s,
               { confidence: 0.85, status: "CONFIRMED", simpleId: "sec_apikey" });
@@ -370,10 +410,13 @@
         if (ids && typeof ids.forEach === "function") ids.forEach(function () { any = true; });
         else if (ids) any = Object.keys(ids).length > 0;
         self._eachFile(["javascript", "typescript"], function (fname, content) {
-          var re = /(?:getElementById|querySelector)\s*\(\s*['"]#?([^'"]+)['"]/g, m;
+          if (typeof ADStandards !== "undefined" && ADStandards.isVendorFile(fname)) return;
+          var re = /getElementById\s*\(\s*['"]([^'"]+)['"]\s*\)/g, m;
           while ((m = re.exec(content))) {
-            if (m[1] && any && !hasId(m[1])) {
-              self._add("medium", fname, 1, "dom", "Missing DOM element: " + m[1], "May cause null errors.", "Element exists.", "No id=" + m[1], "Add element or guard.", s,
+            var id = m[1];
+            if (typeof ADStandards !== "undefined" && !ADStandards.isValidDomId(id)) continue;
+            if (any && !hasId(id)) {
+              self._add("medium", fname, 1, "dom", "Missing DOM element: " + id, "May cause null errors.", "Element exists.", "No id=" + id, "Add element or guard.", s,
                 { confidence: 0.7, status: "LIKELY", simpleId: "missing_dom" });
             }
           }
@@ -656,6 +699,7 @@
 
       secOuterHTML: function (s) {
         self._eachFile(["javascript", "typescript", "html"], function (fname, content) {
+          if (typeof ADStandards !== "undefined" && ADStandards.shouldSkipSecurityKeywordScan(fname)) return;
           var code = stripNoise(content);
           if (/\.outerHTML\s*=/i.test(code)) {
             self._add("high", fname, 1, "security", "outerHTML assignment",
@@ -669,6 +713,7 @@
       },
       secInsertAdj: function (s) {
         self._eachFile(["javascript", "typescript"], function (fname, content) {
+          if (typeof ADStandards !== "undefined" && ADStandards.shouldSkipSecurityKeywordScan(fname)) return;
           var code = stripNoise(content);
           if (/insertAdjacentHTML\s*\(/i.test(code)) {
             self._add("high", fname, 1, "security", "insertAdjacentHTML usage",
@@ -682,6 +727,7 @@
       },
       secFunctionCtor: function (s) {
         self._eachFile(["javascript", "typescript"], function (fname, content) {
+          if (typeof ADStandards !== "undefined" && ADStandards.shouldSkipSecurityKeywordScan(fname)) return;
           var code = stripNoise(content);
           if (/\bnew\s+Function\s*\(/i.test(code) || /\bFunction\s*\(\s*["']/i.test(code)) {
             self._add("high", fname, 1, "security", "Function constructor",
@@ -695,6 +741,7 @@
       },
       secJsUrl: function (s) {
         self._eachFile(["html", "javascript", "typescript"], function (fname, content) {
+          if (typeof ADStandards !== "undefined" && ADStandards.shouldSkipSecurityKeywordScan(fname)) return;
           if (/javascript\s*:/i.test(content) && !/content=["'][^"']*javascript:/i.test(content)) {
             // still check code path
             var code = stripNoise(content);
@@ -711,6 +758,7 @@
       },
       secLocalStorage: function (s) {
         self._eachFile(["javascript", "typescript"], function (fname, content) {
+          if (typeof ADStandards !== "undefined" && ADStandards.shouldSkipSecurityKeywordScan(fname)) return;
           var code = stripNoise(content);
           if (/localStorage\.setItem\s*\(/i.test(code) && /(token|password|secret|auth|session|api[_-]?key)/i.test(content)) {
             self._add("high", fname, 1, "security", "Sensitive data in localStorage",
@@ -724,6 +772,7 @@
       },
       secCookie: function (s) {
         self._eachFile(["javascript", "typescript"], function (fname, content) {
+          if (typeof ADStandards !== "undefined" && ADStandards.shouldSkipSecurityKeywordScan(fname)) return;
           var code = stripNoise(content);
           if (/document\.cookie\s*=/i.test(code)) {
             self._add("medium", fname, 1, "security", "document.cookie assignment",
@@ -736,6 +785,7 @@
       },
       secPostMessage: function (s) {
         self._eachFile(["javascript", "typescript"], function (fname, content) {
+          if (typeof ADStandards !== "undefined" && ADStandards.shouldSkipSecurityKeywordScan(fname)) return;
           var code = stripNoise(content);
           if (/postMessage\s*\([^)]*,\s*["']\*["']/i.test(code)) {
             self._add("high", fname, 1, "security", "postMessage with wildcard origin",
@@ -771,6 +821,7 @@
       },
       secSourceSink: function (s) {
         self._eachFile(["javascript", "typescript"], function (fname, content) {
+          if (typeof ADStandards !== "undefined" && ADStandards.shouldSkipSecurityKeywordScan(fname)) return;
           var code = stripNoise(content);
           var hasSource = /(location\.hash|location\.search|document\.URL|document\.referrer|\.value\b|getElementById\([^)]+\)\.value)/i.test(code);
           var hasSink = /(innerHTML|outerHTML|insertAdjacentHTML|document\.write)\s*=/i.test(code) || /(innerHTML|insertAdjacentHTML)\s*\(/i.test(code);
@@ -822,6 +873,7 @@
       },
       secCmdInject: function (s) {
         self._eachFile(["python", "php", "javascript"], function (fname, content) {
+          if (typeof ADStandards !== "undefined" && ADStandards.shouldSkipSecurityKeywordScan(fname)) return;
           var code = stripNoise(content);
           if (/(os\.system|subprocess\.(call|Popen|run)|shell_exec|exec\s*\(|child_process)/i.test(code) &&
               /(\+|`|\$\{|\$_GET|\$_POST|req\.|request\.)/i.test(content)) {
@@ -838,6 +890,8 @@
         // Combination: innerHTML + user-like source across project
         var hasSource = false, hasSink = false, sinkFile = "project", sourceFile = "project";
         Object.keys(self.files).forEach(function (n) {
+          if (typeof ADStandards !== "undefined" && (ADStandards.shouldSkipSecurityKeywordScan(n) || ADStandards.isVendorFile(n))) return;
+          if (((n.split(".").pop() || "").toLowerCase()) === "css") return;
           var code = stripNoise(self.files[n]);
           if (/(location\.hash|location\.search|\.value\b)/i.test(code)) { hasSource = true; sourceFile = n; }
           if (/(innerHTML|outerHTML|insertAdjacentHTML)\s*=/i.test(code)) { hasSink = true; sinkFile = n; }
@@ -921,6 +975,7 @@
       },
       crEmptyCatch: function (s) {
         self._eachFile(["javascript","typescript"], function (fname, content) {
+          if (typeof ADStandards !== "undefined" && ADStandards.isVendorFile(fname)) return;
           if (/catch\s*\([^)]*\)\s*\{\s*\}/.test(content)) {
             self._add("medium", fname, 1, "logic", "Empty catch block",
               "Errors may be swallowed silently.",
