@@ -52,6 +52,9 @@
     }
     this.skipped = sel.skipped || [];
     this.strategiesRun = (sel.selected || []).map(function (s) { return s.id; });
+    if (!this.astMap && globalThis.ADAst) {
+      try { this.astMap = ADAst.analyzeProject(this.files); } catch (e) { this.astMap = null; }
+    }
 
     this.testResults = [{
       level: this.level,
