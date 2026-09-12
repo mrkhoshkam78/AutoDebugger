@@ -1,0 +1,16 @@
+body {
+  font-size: 16px;
+  margin: 0;
+}
+
+.title {
+  color: blue;
+}
+
+/* empty rule */
+.unused {
+}
+
+@media (max-width: 600px) {
+  body { font-size: 14px; }
+}
