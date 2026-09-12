@@ -79,6 +79,13 @@
       allCategories: "All categories",
       strategiesRun: "Strategies run",
       clearResults: "Clear results",
+      analyzedNoFindings: "Analysis complete — no issues found.",
+      uploadedProject: "Uploaded",
+      clearAll: "Clear all",
+      copy: "Copy",
+      copied: "Copied",
+      menuOpen: "Menu",
+
 
       lvl1: "Level 1 — Quick",
       lvl2: "Level 2 — Full",
@@ -279,6 +286,13 @@
       allCategories: "همه دسته‌ها",
       strategiesRun: "استراتژی‌های اجراشده",
       clearResults: "پاک‌کردن نتایج",
+      analyzedNoFindings: "تحلیل انجام شد؛ مشکلی پیدا نشد.",
+      uploadedProject: "بارگذاری‌شده",
+      clearAll: "پاک کردن همه",
+      copy: "کپی",
+      copied: "کپی شد",
+      menuOpen: "منو",
+
       lvl1: "سطح ۱ — سریع",
       lvl2: "سطح ۲ — کامل",
       lvl3: "سطح ۳ — عمیق",
@@ -405,7 +419,7 @@
     }
   };
 
-  var currentLang = "en";
+  var currentLang = "fa";
 
   function t(key, vars) {
     vars = vars || {};
