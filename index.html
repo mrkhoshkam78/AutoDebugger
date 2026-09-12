@@ -4,13 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="description" content="Auto Debugger — browser-only static analysis" />
-  <title>Auto Debugger V2.05</title>
+  <title>Auto Debugger V3.0</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
 <body>
+  <div class="bg-wave" aria-hidden="true">
+    <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
+      <path class="bg-wave-p1" fill="currentColor" d="M0,160 C320,220 420,80 720,140 C1020,200 1120,100 1440,160 L1440,320 L0,320 Z"/>
+      <path class="bg-wave-p2" fill="currentColor" d="M0,200 C280,140 480,260 720,200 C960,140 1160,240 1440,180 L1440,320 L0,320 Z"/>
+    </svg>
+  </div>
   <div class="app">
     <div class="wave-deco" aria-hidden="true">
       <svg class="wave-svg" viewBox="0 0 1440 60" preserveAspectRatio="none">
@@ -29,11 +35,12 @@
     <header class="header">
       <div class="logo">
         <div class="logo-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          <img src="logo_header.png" alt="" class="logo-img" onerror="this.style.display='none';var f=this.nextElementSibling;if(f)f.style.display='block'" />
+          <svg class="logo-fallback" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
         </div>
         <div>
           <h1 data-i18n="appTitle">Auto Debugger</h1>
-          <span class="version" data-i18n="version">V2.05 · Browser-Only</span>
+          <span class="version" data-i18n="version">V3.0 · Browser-Only</span>
         </div>
       </div>
       <div class="header-right">
@@ -192,17 +199,27 @@
           </div>
         </div>
       </section>
+
+      <!-- Final Prompt -->
+      <section class="glass-panel final-prompt-section" id="finalPromptSection" hidden>
+        <div class="panel-header">
+          <h2 data-i18n="finalPromptTitle">Generate Final Prompt</h2>
+          <button type="button" class="btn secondary btn-sm" id="copyPromptBtn" data-i18n="copyPrompt">Copy Prompt</button>
+        </div>
+        <p class="final-prompt-hint" data-i18n="finalPromptHint">Professional fix prompt from confirmed findings only.</p>
+        <pre class="final-prompt-box" id="finalPromptBox"></pre>
+      </section>
     </main>
 
     <footer class="footer">
-      <span data-i18n="footerLeft">V2.05 · Static analysis · No auto-fix</span>
+      <span data-i18n="footerLeft">V3.0 · Static analysis · No auto-fix</span>
       <span data-i18n="footerRight">Offline · IndexedDB · Safe</span>
     </footer>
   </div>
 
   <!-- Settings -->
   <div class="settings-overlay" id="settingsOverlay">
-    <div class="settings-panel" role="dialog" aria-labelledby="settingsTitle">
+    <div class="settings-panel glass-panel" role="dialog" aria-labelledby="settingsTitle">
       <div class="settings-header">
         <h2 id="settingsTitle" data-i18n="settings">Settings</h2>
         <button type="button" class="icon-btn" id="settingsClose" aria-label="Close">
@@ -233,6 +250,7 @@
   <script src="js/project-mapper.js"></script>
   <script src="js/knowledge-db.js"></script>
   <script src="js/results-store.js"></script>
+  <script src="js/final-prompt.js"></script>
   <script src="js/engines/debug-engine.js"></script>
   <script src="app.js"></script>
 </body>

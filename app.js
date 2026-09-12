@@ -20,7 +20,7 @@
       levelSelect, levelDesc, startBtn, progressWrap, progressFill, progressText,
       headerStatus, resultsEmpty, resultsContent, summaryCards, testList,
       problemList, problemCount, filters, severityFilter, fileFilter, categoryFilter,
-      settingsOverlay, settingsBtn, settingsClose, clearAllBtn, uploadMeta, uploadProjectName;
+      settingsOverlay, settingsBtn, settingsClose, clearAllBtn, uploadMeta, uploadProjectName, finalPromptSection, finalPromptBox, copyPromptBtn;
 
   var LEVEL_KEYS = { 1: "level1Desc", 2: "level2Desc", 3: "level3Desc", 4: "level4Desc" };
 
@@ -55,6 +55,9 @@
     clearAllBtn = $("#clearAllBtn");
     uploadMeta = $("#uploadMeta");
     uploadProjectName = $("#uploadProjectName");
+    finalPromptSection = $("#finalPromptSection");
+    finalPromptBox = $("#finalPromptBox");
+    copyPromptBtn = $("#copyPromptBtn");
   }
 
   function loadTheme() {
@@ -334,6 +337,28 @@
         clearAllFiles();
       });
     }
+    if (copyPromptBtn) {
+      copyPromptBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        var text = finalPromptBox ? finalPromptBox.textContent : "";
+        if (!text) return;
+        function ok() {
+          var tip = document.getElementById("copyToast");
+          if (!tip) {
+            tip = document.createElement("div");
+            tip.id = "copyToast";
+            tip.className = "copy-toast";
+            document.body.appendChild(tip);
+          }
+          tip.textContent = ADi18n.t("copied");
+          tip.classList.add("show");
+          setTimeout(function () { tip.classList.remove("show"); }, 1400);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(ok).catch(function () { fallbackCopy(text); ok(); });
+        } else { fallbackCopy(text); ok(); }
+      });
+    }
 
     var langEnBtn = $("#langEnBtn");
     var langFaBtn = $("#langFaBtn");
@@ -535,6 +560,12 @@
         graph
       );
       var result = engine.run();
+      result.pipeline = result.pipeline || [
+        "Project Understanding", "Context Mapping", "Strategy Selection",
+        "Static Analysis", "Evidence Correlation", "Root Cause",
+        "False Positive Reduction", "Finding Merge", "Confidence",
+        "Explanation", "Final Report"
+      ];
       if (result.strategies_count) {
         if (progressText) progressText.textContent = ADi18n.t("strategiesRun") + ": " + result.strategies_count;
       }
@@ -570,6 +601,10 @@
       result.summary.strategies_run = result.strategies_count || 0;
       renderResults(result);
       setResultsView("done");
+      updateFinalPrompt({
+        category: categorySelect ? categorySelect.value : "",
+        level: (document.getElementById("levelValue") || {}).value || "1"
+      });
       setStatus(ADi18n.t("statusDone") + " · " + allProblems.length + " · " + (result.strategies_count || 0) + " strat.", "idle");
     } catch (err) {
       clearInterval(tick);
@@ -590,6 +625,15 @@
         if (progressWrap) progressWrap.hidden = true;
       }, 800);
     }
+  }
+
+
+  function updateFinalPrompt(meta) {
+    if (!finalPromptSection || !finalPromptBox || !globalThis.ADFinalPrompt) return;
+    var gen = ADFinalPrompt.generate(allProblems, meta || {});
+    finalPromptSection.hidden = false;
+    finalPromptBox.textContent = gen.text;
+    finalPromptBox.dataset.empty = gen.empty ? "1" : "0";
   }
 
   function renderResults(result) {
