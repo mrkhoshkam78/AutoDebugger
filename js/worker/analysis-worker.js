@@ -6,6 +6,7 @@ try {
   importScripts(
     BASE + "../lib/utils.js",
     BASE + "../analysis-cache.js",
+    BASE + "../supervisor.js",
     BASE + "../analysis-standards.js",
     BASE + "../explanation.js",
     BASE + "../strategies.js",
@@ -62,6 +63,17 @@ self.onmessage = function (ev) {
     }
 
     // 4 Strategy selection preview (category-aware)
+    var plan = null;
+    if (typeof ADSupervisor !== "undefined" && ADSupervisor.buildPlan) {
+      plan = ADSupervisor.buildPlan({
+        category: category,
+        level: level,
+        language: language,
+        fileCount: fileCount
+      });
+      progress("select", 24, "Supervisor plan: " + (plan.engines || []).join(" → "));
+    }
+
     progress("select", 28, "Selecting strategies for: " + category);
     var ctxPreview = { has: {}, languages: {}, fileCount: fileCount };
     if (graph && graph.languages) {
@@ -128,7 +140,15 @@ self.onmessage = function (ev) {
     result.strategies_selected_preview = (selPreview.selected || []).map(function (s) { return s.id; });
     result.cache_stats = cacheStats;
     result.worker_ms = Date.now() - t0;
-    result.version = "V6-SmartWorker";
+    result.version = "V8.05";
+    if (typeof ADSupervisor !== "undefined") {
+      if (ADSupervisor.correlateFindings) {
+        result.problems = ADSupervisor.correlateFindings(result.problems || []);
+      }
+      if (plan && ADSupervisor.attachPlanMeta) {
+        ADSupervisor.attachPlanMeta(result, plan);
+      }
+    }
 
     progress("report", 98, "Complete · " + (result.problems || []).length + " findings · " + result.worker_ms + "ms");
     self.postMessage({ type: "result", result: result });
