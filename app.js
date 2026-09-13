@@ -238,11 +238,32 @@
     document.body.removeChild(ta);
   }
 
+
+  function applyDefaultLevelFromSettings() {
+    var def = "1";
+    try {
+      def = localStorage.getItem("ad_default_level") || "1";
+    } catch (e) {}
+    def = String(parseInt(def, 10) || 1);
+    if (def < "1" || def > "4") def = "1";
+    var hv = document.getElementById("levelValue");
+    if (hv) hv.value = def;
+    var levelOpts = document.querySelectorAll(".level-opt");
+    for (var i = 0; i < levelOpts.length; i++) {
+      var on = levelOpts[i].getAttribute("data-level") === def;
+      levelOpts[i].classList.toggle("active", on);
+      levelOpts[i].setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    levelSelect = hv;
+    updateLevelDesc();
+  }
+
   function init() {
     cacheDom();
     ADi18n.loadLang();
     loadTheme();
     applyLanguage(ADi18n.getLang());
+    applyDefaultLevelFromSettings();
 
     var levelOpts = document.querySelectorAll(".level-opt");
     for (var li = 0; li < levelOpts.length; li++) {
@@ -255,6 +276,7 @@
         var hv = document.getElementById("levelValue");
         if (hv) hv.value = lv;
         levelSelect = hv;
+        try { localStorage.setItem("ad_default_level", String(lv)); } catch (eLv) {}
         updateLevelDesc();
       });
     }
