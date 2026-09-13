@@ -31,6 +31,18 @@
       div.appendChild(document.createElement("br"));
       div.appendChild(m);
     }
+    if (text && text.length > 900) {
+      div.classList.add("collapsed-msg");
+      var expBtn = document.createElement("button");
+      expBtn.type = "button";
+      expBtn.className = "msg-expand-btn";
+      expBtn.textContent = (typeof ADi18n !== "undefined" && ADi18n.getLang() === "fa") ? "نمایش کامل" : "Show full message";
+      expBtn.addEventListener("click", function () {
+        div.classList.remove("collapsed-msg");
+        expBtn.remove();
+      });
+      div.appendChild(expBtn);
+    }
     box.appendChild(div);
     box.scrollTop = box.scrollHeight;
   }
