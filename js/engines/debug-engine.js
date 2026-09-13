@@ -209,8 +209,19 @@
         var related = p.related_categories || [];
         if (c === selfCat) return true;
         if (related.indexOf(selfCat) !== -1) return true;
-        // allow if detecting strategy category matches
         return false;
+      });
+    }
+    if (typeof ADSupervisor !== "undefined" && ADSupervisor.correlateFindings) {
+      this.problems = ADSupervisor.correlateFindings(this.problems || []);
+    }
+    this.supervisorPlan = null;
+    if (typeof ADSupervisor !== "undefined" && ADSupervisor.buildPlan) {
+      this.supervisorPlan = ADSupervisor.buildPlan({
+        category: this.category,
+        level: this.level,
+        language: this.language,
+        fileCount: Object.keys(this.files || {}).length
       });
     }
     this.testResults[0].status = "completed";
