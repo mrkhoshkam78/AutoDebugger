@@ -650,6 +650,11 @@
       currentProjectKey = ADResultsStore.projectKeyFromFiles(projectFiles);
       lastResult = result;
       allProblems = ADResultsStore.mergeFindings(allProblems, incoming, currentProjectKey);
+      try {
+        localStorage.setItem("ad_last_project_key", currentProjectKey || "");
+        localStorage.setItem("ad_last_category", categorySelect ? categorySelect.value : "");
+        localStorage.setItem("ad_last_level", String(lvl || 1));
+      } catch (e) {}
       try { await ADResultsStore.saveFindings(currentProjectKey, allProblems); } catch (e) {}
       result.summary = result.summary || {};
       result.summary.total_problems = allProblems.length;

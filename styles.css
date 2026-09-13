@@ -1322,3 +1322,189 @@ select, input, textarea {
 @media (max-width: 320px) {
   .main { padding: var(--space-2); gap: var(--space-2); }
 }
+
+/* ═══ Sidebar navigation ═══ */
+body.has-sidebar {
+  display: block;
+}
+.app-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 240px;
+  height: 100vh;
+  background: var(--surface-solid);
+  border-right: 1px solid var(--border-strong);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4);
+  transform: translateX(0);
+  transition: transform 0.2s ease;
+}
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: var(--space-5);
+  color: var(--text);
+  font-weight: 650;
+}
+.sidebar-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--primary);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+.nav-item:hover, .nav-item:focus-visible {
+  background: var(--primary-soft);
+  color: var(--text);
+  outline: none;
+}
+.nav-item.active {
+  background: var(--primary-soft);
+  color: var(--text);
+  border: 1px solid rgba(59,130,246,.35);
+}
+.sidebar-close {
+  display: none;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 1.5rem;
+  cursor: pointer;
+  align-self: flex-end;
+}
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 90;
+}
+body.has-sidebar .app-shell,
+body.has-sidebar > .header,
+body.has-sidebar > .main,
+body.has-sidebar > footer {
+  margin-left: 240px;
+}
+/* index structure: header/main are direct children - apply margin via body class */
+body.has-sidebar > header.header,
+body.has-sidebar > main.main,
+body.has-sidebar > footer {
+  margin-left: 240px;
+  width: auto;
+}
+@media (max-width: 900px) {
+  .app-sidebar {
+    transform: translateX(-105%);
+  }
+  .app-sidebar.open {
+    transform: translateX(0);
+  }
+  .sidebar-close { display: block; }
+  body.has-sidebar > header.header,
+  body.has-sidebar > main.main,
+  body.has-sidebar > footer,
+  body.has-sidebar .app-shell {
+    margin-left: 0;
+  }
+}
+.assistant-main, .settings-main {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: calc(100vh - var(--header-h));
+}
+.chat-messages-full {
+  flex: 1;
+  min-height: 50vh;
+  max-height: none;
+  overflow-y: auto;
+  padding: var(--space-4);
+  background: var(--bg-soft);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+.chat-dock {
+  position: sticky;
+  bottom: 0;
+  background: var(--surface-solid);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.chat-dock textarea {
+  width: 100%;
+  min-height: 56px;
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-soft);
+  color: var(--text);
+  font: inherit;
+}
+.chat-dock-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.settings-card {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.settings-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.settings-card input, .settings-card select {
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-soft);
+  color: var(--text);
+}
+.settings-card .hint {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+.assistant-context {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--primary-soft);
+  border: 1px solid var(--border);
+}

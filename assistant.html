@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="Auto Debugger — browser-only static analysis" />
+  <title>Assistant · Auto Debugger</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body class="has-sidebar page-assistant">
+  <aside class="app-sidebar" id="appSidebar" aria-label="Main navigation">
+    <div class="sidebar-brand"><span class="sidebar-logo">AD</span><span class="sidebar-title">Auto Debugger</span></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" href="index.html"><span>Analysis</span></a>
+      <a class="nav-item active" href="assistant.html"><span>Assistant</span></a>
+      <a class="nav-item" href="settings.html"><span>Settings</span></a>
+    </nav>
+    <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Close">×</button>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay" hidden></div>
+  <div class="app-shell">
+    <header class="header">
+      <div class="header-left">
+        <button type="button" class="icon-btn menu-btn" id="sidebarOpen" aria-label="Menu">☰</button>
+        <h1 data-i18n="assistantTitle">Assistant</h1>
+        <span class="version" id="llmStatus">Local evidence mode</span>
+      </div>
+      <div class="header-right">
+        <span class="local-badge">Local · Offline</span>
+      </div>
+    </header>
+    <main class="assistant-main">
+      <div class="assistant-context" id="assistantContext">
+        <span data-i18n="assistantCtxHint">Uses latest analysis findings from this browser (Results Store). Engines remain the source of truth.</span>
+      </div>
+      <div class="chat-messages chat-messages-full" id="chatMessages" role="log" aria-live="polite">
+        <div class="chat-empty" id="chatEmpty">Ask about findings, priority, root cause, or which category to run next.</div>
+      </div>
+      <div class="chat-dock">
+        <textarea id="chatInput" rows="2" placeholder="Message…" aria-label="Message"></textarea>
+        <div class="chat-dock-actions">
+          <button type="button" class="btn secondary btn-sm" id="chatClear">Clear</button>
+          <button type="button" class="btn secondary btn-sm" id="chatSummarize">Summarize</button>
+          <button type="button" class="btn primary" id="chatSend">Send</button>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="js/lib/utils.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/results-store.js"></script>
+  <script src="js/llm-assistant.js"></script>
+  <script src="js/nav-shell.js"></script>
+  <script src="js/assistant-page.js"></script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="Auto Debugger — browser-only static analysis" />
+  <title>Settings · Auto Debugger</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body class="has-sidebar page-settings">
+  <aside class="app-sidebar" id="appSidebar" aria-label="Main navigation">
+    <div class="sidebar-brand"><span class="sidebar-logo">AD</span><span class="sidebar-title">Auto Debugger</span></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" href="index.html"><span>Analysis</span></a>
+      <a class="nav-item" href="assistant.html"><span>Assistant</span></a>
+      <a class="nav-item active" href="settings.html"><span>Settings</span></a>
+    </nav>
+    <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Close">×</button>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay" hidden></div>
+  <div class="app-shell">
+    <header class="header">
+      <div class="header-left">
+        <button type="button" class="icon-btn menu-btn" id="sidebarOpen" aria-label="Menu">☰</button>
+        <h1 data-i18n="navSettings">Settings</h1>
+      </div>
+    </header>
+    <main class="settings-main">
+      <section class="panel settings-card">
+        <h2>Appearance</h2>
+        <label>Theme
+          <select id="setTheme">
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+        </label>
+        <label>Language
+          <select id="setLang">
+            <option value="en">English</option>
+            <option value="fa">فارسی</option>
+          </select>
+        </label>
+      </section>
+      <section class="panel settings-card">
+        <h2>Analysis defaults</h2>
+        <label>Default level
+          <select id="setLevel">
+            <option value="1">Quick</option>
+            <option value="2">Full</option>
+            <option value="3">Deep</option>
+            <option value="4">Special</option>
+          </select>
+        </label>
+      </section>
+      <section class="panel settings-card">
+        <h2>LLM Provider (optional)</h2>
+        <p class="hint">API key is kept in sessionStorage only — never hard-coded. Leave provider on None to use local evidence mode.</p>
+        <label>Provider
+          <select id="setProvider">
+            <option value="none">None (local)</option>
+            <option value="openai-compatible">OpenAI-compatible endpoint</option>
+          </select>
+        </label>
+        <label>Endpoint URL
+          <input type="url" id="setEndpoint" placeholder="https://api.example.com/v1/chat/completions" />
+        </label>
+        <label>Model
+          <input type="text" id="setModel" placeholder="model-id" />
+        </label>
+        <label>API Key
+          <input type="password" id="setApiKey" placeholder="sk-…" autocomplete="off" />
+        </label>
+        <button type="button" class="btn primary" id="saveLlm">Save LLM settings</button>
+        <p id="llmSaveMsg" class="hint" hidden></p>
+      </section>
+      <section class="panel settings-card">
+        <h2>Storage</h2>
+        <button type="button" class="btn secondary" id="clearChatMem">Clear conversation memory</button>
+        <button type="button" class="btn secondary" id="clearFindings">Clear saved findings</button>
+      </section>
+    </main>
+  </div>
+  <script src="js/lib/utils.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/results-store.js"></script>
+  <script src="js/llm-assistant.js"></script>
+  <script src="js/nav-shell.js"></script>
+  <script src="js/settings-page.js"></script>
+</body>
+</html>
