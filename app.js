@@ -12,6 +12,7 @@
   var currentProjectKey = "default";
   var analysisState = "none"; // none | done | error
   var lastUploadLabel = "";
+  var lastResult = null;
   var isAnalyzing = false;
 
   function $(s) { return document.querySelector(s); }
@@ -647,6 +648,7 @@
 
       var incoming = result.problems || [];
       currentProjectKey = ADResultsStore.projectKeyFromFiles(projectFiles);
+      lastResult = result;
       allProblems = ADResultsStore.mergeFindings(allProblems, incoming, currentProjectKey);
       try { await ADResultsStore.saveFindings(currentProjectKey, allProblems); } catch (e) {}
       result.summary = result.summary || {};
@@ -803,6 +805,8 @@
         '<button type="button" class="btn secondary btn-sm copy-btn" data-copy-idx="' + i + '">' +
         '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg> ' +
         ADUtils.escapeHtml(ADi18n.t("copy")) + "</button>" +
+        '<button type="button" class="btn secondary btn-sm ask-assistant-btn" data-ask-idx="' + i + '">' +
+        ADUtils.escapeHtml(ADi18n.t("askAssistant") || "Ask Assistant") + "</button>" +
         "</div></div>" +
         '<details class="tech-details">' +
         "<summary>" + ADUtils.escapeHtml(ADi18n.t("techDetails")) + "</summary>" +
@@ -833,7 +837,116 @@
         if (!isNaN(idx) && filtered[idx]) copyFinding(filtered[idx]);
       });
     }
+    var askBtns = problemList.querySelectorAll("[data-ask-idx]");
+    for (var ai = 0; ai < askBtns.length; ai++) {
+      askBtns[ai].addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var idx = parseInt(this.getAttribute("data-ask-idx"), 10);
+        if (!isNaN(idx) && filtered[idx]) {
+          window.__adFocusFinding = filtered[idx];
+          var panel = document.getElementById("assistantPanel");
+          if (panel) panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          sendChatMessage("چرا این Finding گزارش شده؟ " + (filtered[idx].description || "").slice(0, 80));
+        }
+      });
+    }
   }
+
+
+  function getAssistantAppState(focusFinding) {
+    var names = Object.keys(projectFiles || {});
+    return {
+      projectKey: currentProjectKey || ADResultsStore.projectKeyFromFiles(projectFiles),
+      fileCount: names.length,
+      fileNames: names,
+      category: categorySelect ? categorySelect.value : "Test All",
+      level: parseInt((document.getElementById("levelValue") || { value: "1" }).value, 10) || 1,
+      findings: allProblems || [],
+      focusFinding: focusFinding || null,
+      languages: (lastResult && lastResult.context && lastResult.context.languages) || {}
+    };
+  }
+
+  function appendChatBubble(role, text, meta) {
+    var box = document.getElementById("chatMessages");
+    if (!box) return;
+    var empty = document.getElementById("chatEmpty");
+    if (empty) empty.hidden = true;
+    var div = document.createElement("div");
+    div.className = "chat-bubble " + role;
+    div.textContent = text;
+    if (meta) {
+      var m = document.createElement("div");
+      m.className = "chat-meta";
+      m.textContent = meta;
+      div.appendChild(m);
+    }
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  async function sendChatMessage(preset) {
+    if (typeof ADLLM === "undefined") {
+      appendChatBubble("assistant", "LLM module not loaded. Static analysis still works.");
+      return;
+    }
+    var input = document.getElementById("chatInput");
+    var msg = preset || (input && input.value.trim());
+    if (!msg) return;
+    if (input && !preset) input.value = "";
+    appendChatBubble("user", msg);
+    var status = document.getElementById("llmStatus");
+    if (status) status.textContent = ADLLM.isProviderReady() ? "Provider…" : (typeof ADi18n !== "undefined" ? ADi18n.t("assistantLocal") : "Local");
+    try {
+      var res = await ADLLM.chat(msg, getAssistantAppState(window.__adFocusFinding || null));
+      appendChatBubble("assistant", res.reply, res.source ? ("source: " + res.source) : "");
+      if (res.suggestedCategory && categorySelect) {
+        // Suggest only — do not auto-run without user confirm; set select value as hint
+        var opt = Array.prototype.find.call(categorySelect.options, function (o) { return o.value === res.suggestedCategory; });
+        if (opt) {
+          appendChatBubble("assistant", "Suggested category: " + res.suggestedCategory + " — select it and run Analysis to apply.");
+        }
+      }
+    } catch (e) {
+      appendChatBubble("assistant", "Chat error: " + (e && e.message || e));
+    }
+  }
+
+  function bindAssistantUI() {
+    var send = document.getElementById("chatSend");
+    var input = document.getElementById("chatInput");
+    var clear = document.getElementById("chatClear");
+    var sum = document.getElementById("chatSummarize");
+    if (send) send.addEventListener("click", function () { sendChatMessage(); });
+    if (input) input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
+    });
+    if (clear) clear.addEventListener("click", function () {
+      if (typeof ADLLM !== "undefined") ADLLM.clearHistory(currentProjectKey || "default");
+      var box = document.getElementById("chatMessages");
+      if (box) {
+        box.innerHTML = "";
+        var empty = document.createElement("div");
+        empty.className = "chat-empty";
+        empty.id = "chatEmpty";
+        empty.textContent = typeof ADi18n !== "undefined" ? ADi18n.t("assistantEmpty") : "Ask about findings…";
+        box.appendChild(empty);
+      }
+    });
+    if (sum) sum.addEventListener("click", function () { sendChatMessage("خلاصه نتایج را بگو"); });
+    var st = document.getElementById("llmStatus");
+    if (st && typeof ADLLM !== "undefined") {
+      st.textContent = ADLLM.isProviderReady() ? ("Provider: " + (ADLLM.getConfig().provider || "")) : (typeof ADi18n !== "undefined" ? ADi18n.t("assistantLocal") : "Local");
+    }
+  }
+
+
+  var _origInit = init;
+  init = function () {
+    _origInit();
+    try { bindAssistantUI(); } catch (e) { console.warn("assistant UI", e); }
+  };
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);

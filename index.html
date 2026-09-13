@@ -40,7 +40,7 @@
         </div>
         <div>
           <h1 data-i18n="appTitle">Auto Debugger</h1>
-          <span class="version" data-i18n="version">V6 · Stage-2</span>
+          <span class="version" data-i18n="version">V6 · Stage-3 · Chat</span>
         </div>
       </div>
       <div class="header-right">
@@ -222,8 +222,27 @@
       </section>
     </main>
 
+    
+      <section class="panel chat-panel glass-panel" id="assistantPanel" aria-label="LLM Assistant">
+        <div class="panel-header">
+          <h2 data-i18n="assistantTitle">Assistant</h2>
+          <span class="chat-meta" id="llmStatus" data-i18n="assistantLocal">Local evidence mode</span>
+        </div>
+        <div class="chat-messages" id="chatMessages" role="log" aria-live="polite">
+          <div class="chat-empty" id="chatEmpty" data-i18n="assistantEmpty">Ask about findings, priority, or why a bug was reported. Analysis engines stay the source of truth.</div>
+        </div>
+        <div class="chat-input-row">
+          <textarea id="chatInput" rows="2" data-i18n-placeholder="assistantPlaceholder" placeholder="Ask about findings…" aria-label="Chat message"></textarea>
+          <button type="button" class="btn primary" id="chatSend" data-i18n="send">Send</button>
+        </div>
+        <div class="chat-actions">
+          <button type="button" class="btn secondary btn-sm" id="chatClear" data-i18n="clearChat">Clear chat</button>
+          <button type="button" class="btn secondary btn-sm" id="chatSummarize" data-i18n="summarizeFindings">Summarize findings</button>
+        </div>
+      </section>
+
     <footer class="footer">
-      <span data-i18n="footerLeft">V6 Stage-2 · Tests · Mutation · Regression · No auto-fix</span>
+      <span data-i18n="footerLeft">V6 Stage-3 · Correlation · DOM · Git · Adaptive · No auto-fix</span>
       <span data-i18n="footerRight">Offline · IndexedDB · Safe</span>
     </footer>
   </div>
@@ -263,6 +282,7 @@
   <script src="js/analysis-core.js"></script>
   <script src="js/stage2-core.js"></script>
   <script src="js/stage3-core.js"></script>
+  <script src="js/llm-assistant.js"></script>
   <script src="js/project-mapper.js"></script>
   <script src="js/knowledge-db.js"></script>
   <script src="js/results-store.js"></script>
