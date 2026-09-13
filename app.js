@@ -782,9 +782,20 @@
       var ruleId = (p.simple && p.simple.id) || p.rule_id || "";
       var sx = ruleId && ADi18n.simpleExpl ? ADi18n.simpleExpl(ruleId, p.simple || {}) : null;
       var title = (sx && sx.title && sx.title.indexOf("sx.") !== 0) ? sx.title : p.description;
-      var why = (sx && sx.why && sx.why.indexOf("sx.") !== 0) ? sx.why : p.why_problematic;
+      var why = (sx && sx.why && sx.why.indexOf("sx.") !== 0) ? sx.why : (p.why_problematic || p.why_it_matters || p.impact || "");
       var evidence = (sx && sx.evidence && sx.evidence.indexOf("sx.") !== 0) ? sx.evidence : (p.evidence || p.detected_behavior);
-      var fix = (sx && sx.fix && sx.fix.indexOf("sx.") !== 0) ? sx.fix : p.recommended_correction_area;
+      var fix = (sx && sx.fix && sx.fix.indexOf("sx.") !== 0) ? sx.fix : (p.recommended_correction_area || p.recommendation || "");
+      if (typeof ADExplain !== "undefined" && !p.conversational) {
+        try { ADExplain.enrichFinding(p); } catch (eEn) {}
+      }
+      var convo = p.conversational || "";
+      if (typeof evidence !== "string") {
+        try {
+          evidence = Array.isArray(evidence)
+            ? evidence.map(function (e) { return e && (e.explanation || e.snippet || ""); }).filter(Boolean).join("; ")
+            : String(evidence || "");
+        } catch (eEv) { evidence = ""; }
+      }
       var statusLabel = ADi18n.t("status" + (p.status === "CONFIRMED" ? "Confirmed" : p.status === "POSSIBLE" ? "Possible" : "Likely"));
       var confPct = ((p.confidence != null ? p.confidence : 0.5) * 100) | 0;
 
@@ -802,8 +813,9 @@
         "</div>" +
         '<div class="problem-body">' +
         '<div class="simple-block">' +
+        (convo ? ('<div class="simple-row conversational"><p class="conversational-text">' + ADUtils.escapeHtml(convo) + "</p></div>") : "") +
         '<div class="simple-row"><span class="simple-label">' + ADUtils.escapeHtml(ADi18n.t("why")) + '</span><p>' + ADUtils.escapeHtml(why) + "</p></div>" +
-        '<div class="simple-row"><span class="simple-label">' + ADUtils.escapeHtml(ADi18n.t("evidence")) + '</span><p>' + ADUtils.escapeHtml(evidence) + "</p></div>" +
+        '<div class="simple-row"><span class="simple-label">' + ADUtils.escapeHtml(ADi18n.t("evidence")) + '</span><p class="evidence-block">' + ADUtils.escapeHtml(String(evidence || "")) + "</p></div>" +
         '<div class="simple-row recommend"><span class="simple-label">' + ADUtils.escapeHtml(ADi18n.t("recommendation")) + '</span><p>' + ADUtils.escapeHtml(fix) + "</p></div>" +
         '<div class="loc-row"><span class="loc-file">' + ADUtils.escapeHtml(p.file_name) + "</span>" +
         (p.line ? '<span class="loc-line">L' + p.line + "</span>" : "") +

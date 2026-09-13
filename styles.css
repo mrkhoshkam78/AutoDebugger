@@ -1602,3 +1602,161 @@ body.has-sidebar > footer {
   color: var(--text);
   font-size: 0.95rem;
 }
+
+/* ═══ Long content / responsive overflow guards ═══ */
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+.app-shell,
+.main,
+.panel,
+.problem-card,
+.chat-messages,
+.chat-bubble,
+.settings-main,
+.assistant-main {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.main {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+.problem-list,
+.results-panel,
+.config-panel {
+  min-width: 0;
+  max-width: 100%;
+}
+.problem-card {
+  overflow: hidden;
+  max-width: 100%;
+}
+.problem-title,
+.problem-body,
+.simple-block,
+.simple-row p,
+.detail-row .value,
+.chat-bubble,
+.loc-file {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+}
+.loc-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
+.loc-file {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.loc-line {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+/* Code / evidence: scroll, don't expand page */
+.problem-details pre,
+.evidence-block,
+.code-like,
+.math-evidence-block {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 220px;
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  -webkit-overflow-scrolling: touch;
+}
+.problem-body p,
+.simple-row p,
+.conversational-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+  min-width: 0;
+}
+.detail-row {
+  display: grid;
+  grid-template-columns: minmax(72px, 110px) minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: start;
+  min-width: 0;
+}
+.detail-row .value {
+  min-width: 0;
+}
+.chip {
+  max-width: min(100%, 280px);
+}
+.file-item-name,
+.upload-label-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+}
+select, input, textarea {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.chat-messages-full,
+.chat-messages {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+.chat-bubble {
+  max-width: min(92%, 100%);
+}
+/* Grid safety for main two-column */
+@supports (grid-template-columns: minmax(0, 1fr)) {
+  .main {
+    grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+  }
+}
+@media (max-width: 900px) {
+  .main {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+@media (max-width: 375px) {
+  .problem-card { padding: var(--space-3); }
+  .detail-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .chat-dock-actions .btn {
+    flex: 1 1 auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
