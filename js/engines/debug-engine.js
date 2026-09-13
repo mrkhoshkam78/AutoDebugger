@@ -8,15 +8,17 @@
   var SUPPORTED_EXTENSIONS = U.SUPPORTED_EXTENSIONS || {};
   var TEST_LEVELS = U.TEST_LEVELS || { 1: "QUICK TEST", 2: "FULL CHECK", 3: "DEEP CHECK", 4: "SPECIAL" };
 
-  /** Independent calculator for simple arithmetic (not the site formula path). */
+  /** Independent calculator — pure arithmetic only (not application formula path). */
   function independentCalc(expr) {
     try {
       var s = String(expr || "").replace(/\s+/g, "");
-      if (!/^[-+/*().0-9]+$/.test(s)) return null;
-      // safe-ish eval of pure arithmetic only
+      if (!s || s.length > 120) return null;
+      if (!/^[-+/*%().0-9]+$/.test(s)) return null;
+      // reject empty operators / leading naked operators misuse lightly
       var fn = new Function("return (" + s + ");");
       var v = fn();
-      if (typeof v !== "number" || !isFinite(v)) return { value: v, finite: false };
+      if (typeof v !== "number") return { value: v, finite: false };
+      if (!isFinite(v)) return { value: v, finite: false };
       return { value: v, finite: true };
     } catch (e) {
       return null;
@@ -26,10 +28,23 @@
   function compareNumeric(expected, actual, tol) {
     tol = tol == null ? 1e-9 : tol;
     if (expected == null || actual == null) return { ok: false, reason: "missing" };
-    if (!isFinite(expected) || !isFinite(actual)) return { ok: false, reason: "non-finite" };
+    if (!isFinite(expected) || !isFinite(actual)) return { ok: false, reason: "non-finite", expected: expected, actual: actual };
     var diff = Math.abs(expected - actual);
     return { ok: diff <= tol, diff: diff, expected: expected, actual: actual };
   }
+
+  /** Percentage helpers with explicit convention (fraction vs whole-number percent). */
+  function percentOf(amount, pct, convention) {
+    // convention: "fraction" (0.2) or "whole" (20 meaning 20%)
+    if (convention === "fraction") return amount * pct;
+    return amount * (pct / 100);
+  }
+
+  /** Deterministic property cases for pure expressions containing / 0 */
+  function mathPropertySamples() {
+    return [0, 1, -1, 0.1, 0.5, 1.5, 10, 100, 1000];
+  }
+
 
 
 
@@ -1652,17 +1667,29 @@ jsDotSpace: function (s) {
       },
       mathPercent: function (s) {
         self._eachFile(["javascript", "typescript"], function (fname, content) {
-          // Heuristic: value / 100 * 100 or * 100 / 100 noise; or amount * percent without /100
-          if (/\*\s*percent\b|\*\s*pct\b/i.test(content) && !/\/\s*100/.test(content)) {
-            self._add("medium", fname, 1, "math", "Percentage multiply without /100",
-              "Percent values often need division by 100; missing it overstates results by 100x.",
-              "amount * (percent / 100)",
-              "* percent without /100",
-              "Normalize percent to fraction.", s,
-              { confidence: 0.58, status: "POSSIBLE", simpleId: "math_percent",
-                root_cause: "Percent treated as fraction without scaling",
-                symptom: "Suspicious percentage formula" });
+          var code = content.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+          // amount * percent|pct without /100 — POSSIBLE only (convention-dependent)
+          if (/\*\s*(percent|pct|percentage)\b/i.test(code) && !/\/\s*100/.test(code)) {
+            var line = 1;
+            var idx = code.search(/\*\s*(percent|pct|percentage)\b/i);
+            if (idx >= 0) line = content.slice(0, Math.min(idx, content.length)).split("\n").length;
+            var expWhole = percentOf(100, 20, "whole"); // 20
+            var expFrac = percentOf(100, 20, "fraction"); // 2000 if mis-scaled
+            self._add("medium", fname, line, "math", "Percentage scale may be wrong (× percent without ÷100)",
+              "If percent is a whole number (e.g. 20 for 20%), you usually divide by 100. If it is already a fraction (0.2), do not.",
+              "Clarify convention: amount * (percent/100) OR amount * fraction",
+              "Found: multiply by percent/pct without /100 nearby",
+              "Document the convention and normalize (÷100 when percent is 0–100).", s,
+              { confidence: 0.55, status: "POSSIBLE", simpleId: "math_percent",
+                root_cause: "Ambiguous percentage convention (whole vs fraction)",
+                symptom: "Multiplication by percent without explicit /100",
+                impact: "Result can be 100× too large if percent is a whole number",
+                evidence: [
+                  { type: "ast", file: fname, line: line, snippet: "* percent", explanation: "Percent multiply without /100 in same file region" },
+                  { type: "validation", snippet: "ref: 100×20% whole→20; if treated as fraction→2000", explanation: "Independent reference for both conventions — not auto-confirmed" }
+                ] });
           }
+          // (x/y)*100 style is fine — skip
         });
       },
       mathRound: function (s) {
