@@ -1,10 +1,11 @@
-/* Auto Debugger V6 Stage-3 — Analysis Web Worker */
-/* global importScripts, ADUtils, ADProjectMapper, ADDebugEngine, ADAst, ADStrategies, ADCore, ADStage2, ADStage3, ADResultsStore, ADStandards */
+/* Auto Debugger V6+ — Smart Analysis Orchestrator (Web Worker) */
+/* global importScripts, ADUtils, ADProjectMapper, ADDebugEngine, ADAst, ADStrategies, ADCore, ADStage2, ADStage3, ADResultsStore, ADStandards, ADCache */
 
 var BASE = self.location.href.replace(/[^/]+$/, "");
 try {
   importScripts(
     BASE + "../lib/utils.js",
+    BASE + "../analysis-cache.js",
     BASE + "../analysis-standards.js",
     BASE + "../strategies.js",
     BASE + "../project-mapper.js",
@@ -19,40 +20,81 @@ try {
   self.postMessage({ type: "error", message: "Worker import failed: " + (e && e.message) });
 }
 
+function progress(stage, percent, detail) {
+  self.postMessage({ type: "progress", stage: stage, percent: percent, detail: detail });
+}
+
 self.onmessage = function (ev) {
   var data = ev.data || {};
+  if (data.type === "clearCache") {
+    if (typeof ADCache !== "undefined") ADCache.clear();
+    self.postMessage({ type: "cacheCleared" });
+    return;
+  }
   if (data.type !== "analyze") return;
+
   try {
     var files = data.files || {};
     var language = data.language || "auto";
     var category = data.category || "Test All";
     var level = data.level || 1;
+    var t0 = Date.now();
 
-    self.postMessage({ type: "progress", stage: "understand", percent: 4, detail: "Understanding project" });
+    // 1 Understanding
+    progress("understand", 4, "Understanding project");
     var graph = null;
     if (typeof ADProjectMapper !== "undefined") {
       graph = new ADProjectMapper.ProjectMapper(files).map();
     }
-    self.postMessage({ type: "progress", stage: "context", percent: 10, detail: "Mapping context" });
 
+    // 2 Context
+    progress("context", 10, "Mapping context + languages");
+    var fileCount = Object.keys(files).length;
+
+    // 3 AST (cached)
+    progress("ast", 18, "Parsing AST (cache-aware)");
     var astMap = null;
+    var cacheStats = { parsed: 0, cached: 0 };
     if (typeof ADAst !== "undefined") {
-      self.postMessage({ type: "progress", stage: "ast", percent: 18, detail: "Structural parsing" });
       astMap = ADAst.analyzeProject(files);
+      if (astMap && astMap.__cacheStats) cacheStats = astMap.__cacheStats;
     }
 
-    self.postMessage({ type: "progress", stage: "model", percent: 28, detail: "Code model + module graph" });
-    self.postMessage({ type: "progress", stage: "flow", percent: 36, detail: "Data-flow / CFG / symbolic" });
+    // 4 Strategy selection preview (category-aware)
+    progress("select", 28, "Selecting strategies for: " + category);
+    var ctxPreview = { has: {}, languages: {}, fileCount: fileCount };
+    if (graph && graph.languages) {
+      Object.keys(graph.languages).forEach(function (l) {
+        ctxPreview.languages[l] = graph.languages[l];
+        if (l === "html") ctxPreview.has.html = true;
+        if (l === "css") ctxPreview.has.css = true;
+        if (l === "javascript") ctxPreview.has.js = true;
+        if (l === "typescript") ctxPreview.has.ts = true;
+      });
+    }
+    var selPreview = { selected: [], cap: 0 };
+    if (typeof ADStrategies !== "undefined" && ADStrategies.selectStrategies) {
+      selPreview = ADStrategies.selectStrategies(category, level, ctxPreview);
+    }
+    progress("select", 34, (selPreview.selected || []).length + " strategies selected (cap " + (selPreview.cap || "?") + ")");
 
-    self.postMessage({ type: "progress", stage: "select", percent: 44, detail: "Selecting strategies" });
+    // 5 Engine run (includes Stage1 model/flow inside)
+    progress("model", 40, "Building code model + data-flow");
     var engine = new ADDebugEngine.DebugEngine(files, language, category, level, graph);
     if (astMap) engine.astMap = astMap;
 
-    self.postMessage({ type: "progress", stage: "analyze", percent: 55, detail: "Static analysis" });
+    progress("analyze", 48, "Running category strategies");
     var result = engine.run();
 
-    self.postMessage({ type: "progress", stage: "stage2", percent: 68, detail: "Tests / mutation / dependency / regression" });
+    // 6 Stage summaries already computed inside engine
+    progress("flow", 62, "Data-flow / CFG / symbolic");
+    if (engine.cfgIssues) {
+      progress("flow", 66, "CFG issues: " + (engine.cfgIssues.length || 0));
+    }
+
+    progress("validate", 72, "Validation + category filter");
     if (engine.stage2) {
+      progress("stage2", 78, "Tests / mutation / dependency");
       result.stage2 = engine.stage2;
       result.stage2_summary = {
         tests: (engine.stage2.generatedTests || []).length,
@@ -63,11 +105,13 @@ self.onmessage = function (ev) {
         regression: engine.stage2.regression || null
       };
     }
-    self.postMessage({ type: "progress", stage: "stage3", percent: 82, detail: "Correlation / Evidence Graph / DOM / Git" });
+
     if (engine.stage3) {
+      progress("stage3", 86, "Correlation / DOM / evidence graph");
       result.stage3 = engine.stage3;
       result.stage3_summary = engine.stage3.summary || null;
     }
+
     if (engine.codeModel) {
       result.code_model_summary = {
         dataFlows: (engine.codeModel.dataFlows || []).length,
@@ -78,12 +122,16 @@ self.onmessage = function (ev) {
       };
     }
 
-    self.postMessage({ type: "progress", stage: "merge", percent: 90, detail: "Merging findings" });
+    progress("merge", 92, "Merging findings");
     result.strategies_count = result.strategies_count || (result.strategies_run || []).length;
-    result.version = "V6-Stage3";
-    self.postMessage({ type: "progress", stage: "report", percent: 97, detail: "Generating report" });
+    result.strategies_selected_preview = (selPreview.selected || []).map(function (s) { return s.id; });
+    result.cache_stats = cacheStats;
+    result.worker_ms = Date.now() - t0;
+    result.version = "V6-SmartWorker";
+
+    progress("report", 98, "Complete · " + (result.problems || []).length + " findings · " + result.worker_ms + "ms");
     self.postMessage({ type: "result", result: result });
   } catch (err) {
-    self.postMessage({ type: "error", message: (err && err.message || String(err)) });
+    self.postMessage({ type: "error", message: (err && err.message) || String(err) });
   }
 };
