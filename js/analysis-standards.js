@@ -413,6 +413,11 @@
       return (e.explanation || e.snippet || "").toString();
     }).filter(Boolean).join(" | ") || candidate.detected || "";
 
+    // Conversational explanation (evidence-bound, no invented facts)
+    if (typeof ADExplain !== "undefined" && ADExplain.enrichFinding) {
+      try { ADExplain.enrichFinding(candidate); } catch (eExp) {}
+    }
+
     // V6: Root-cause separation (symptom ≠ root)
     var symptom = candidate.symptom || candidate.description || "";
     var rootCause = candidate.rootCause || candidate.why || candidate.recommendation || "";
@@ -459,6 +464,8 @@
       root_cause: rootCause,
       rootCause: rootCause,
       symptom: symptom,
+      conversational: candidate.conversational || "",
+      simple_title: candidate.simple_title || symptom || "",
       evidence: evidenceSummary,
       evidence_list: evidence,
       validation: validation.validations || [],
