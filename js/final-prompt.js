@@ -7,16 +7,29 @@
 
   var SEV_ORDER = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
 
-  function isValidFinding(p) {
+  function isValidFinding(p, opts) {
     if (!p) return false;
-    if (p.status === "NOT_APPLICABLE" || p.status === "SKIPPED") return false;
-    if (p.status === "POSSIBLE" && (p.confidence || 0) < 0.55) return false;
-    if ((p.confidence || 0) < 0.35) return false;
-    return true;
+    opts = opts || {};
+    var cls = (p.classification || "").toUpperCase();
+    var st = (p.status || "").toUpperCase();
+    if (st === "NOT_APPLICABLE" || st === "SKIPPED" || st === "DO_NOT_REPORT") return false;
+    // Default: only CONFIRMED_BUG / SECURITY_ISSUE / PERFORMANCE_ISSUE
+    var allowWeak = opts.includePossible === true;
+    if (cls === "CONFIRMED_BUG" || cls === "SECURITY_ISSUE" || cls === "PERFORMANCE_ISSUE") return true;
+    if (allowWeak && (cls === "POSSIBLE_ISSUE" || cls === "CODE_SMELL" || st === "INCONCLUSIVE" || st === "POSSIBLE")) {
+      return (p.confidence || 0) >= 0.5;
+    }
+    // Legacy status-based
+    if (!cls) {
+      if (st === "POSSIBLE" && (p.confidence || 0) < 0.55) return false;
+      if ((p.confidence || 0) < 0.35) return false;
+      return st === "CONFIRMED" || st === "LIKELY" || (p.confidence || 0) >= 0.7;
+    }
+    return false;
   }
 
-  function sortFindings(list) {
-    return (list || []).slice().filter(isValidFinding).sort(function (a, b) {
+  function sortFindings(list, meta) {
+    return (list || []).slice().filter(function (p) { return isValidFinding(p, meta); }).sort(function (a, b) {
       var sa = SEV_ORDER[a.severity] != null ? SEV_ORDER[a.severity] : 9;
       var sb = SEV_ORDER[b.severity] != null ? SEV_ORDER[b.severity] : 9;
       if (sa !== sb) return sa - sb;
@@ -25,14 +38,34 @@
   }
 
   function issueLine(p, i) {
-    var loc = p.file_name || "unknown";
-    if (p.line) loc += " (line " + p.line + ")";
+    var loc = p.file || p.file_name || "unknown";
+    if (p.line) loc += " (line " + p.line + (p.endLine && p.endLine !== p.line ? "-" + p.endLine : "") + ")";
     if (p.section) loc += " [" + p.section + "]";
-    return (i + 1) + ". [" + (p.severity || "medium").toUpperCase() + " | conf " +
-      Math.round((p.confidence || 0) * 100) + "%] " +
-      (p.description || p.symptom || "Issue") +
+    var conf = p.confidence;
+    if (conf != null && conf <= 1) conf = Math.round(conf * 100);
+    else conf = conf || p.confidence_score || 0;
+    var ev = p.evidence;
+    if (Array.isArray(ev)) {
+      ev = ev.slice(0, 4).map(function (e) {
+        return (e.engine || e.type || "ev") + (e.snippet ? ": " + String(e.snippet).slice(0, 60) : "");
+      }).join(" | ");
+    }
+    var flow = "";
+    if (p.flow && p.flow.length) flow = "\n   Flow: " + p.flow.slice(0, 3).join(" → ");
+    var corr = "";
+    if (p.correlation && p.correlation.engineCount) {
+      corr = "\n   Correlation: " + p.correlation.engineCount + " engines" +
+        (p.correlation.agreement ? " (agreement)" : "") +
+        (p.correlation.contradictions && p.correlation.contradictions.length ? " [CONTRADICTION]" : "");
+    }
+    return (i + 1) + ". [" + (p.severity || "medium").toUpperCase() + " | conf " + conf + "% | " +
+      (p.classification || p.status || "LIKELY") + "] " +
+      (p.symptom || p.description || p.problem || "Issue") +
       "\n   File: " + loc +
-      "\n   Evidence: " + (p.evidence || p.detected_behavior || "—") +
+      "\n   Evidence: " + (ev || p.detected_behavior || "—") +
+      flow + corr +
+      "\n   Root cause: " + (p.rootCause || p.root_cause || "—") +
+      "\n   Impact: " + (p.impact || p.why_it_matters || "—") +
       "\n   Status: " + (p.status || "LIKELY");
   }
 
@@ -46,7 +79,7 @@
 
   function generate(findings, meta) {
     meta = meta || {};
-    var valid = sortFindings(findings);
+    var valid = sortFindings(findings, meta);
     if (!valid.length) {
       return {
         empty: true,

@@ -1,5 +1,5 @@
 /* Auto Debugger V6 Stage-2 — Analysis Web Worker */
-/* global importScripts, ADUtils, ADProjectMapper, ADDebugEngine, ADAst, ADStrategies, ADCore, ADStage2, ADResultsStore, ADStandards */
+/* global importScripts, ADUtils, ADProjectMapper, ADDebugEngine, ADAst, ADStrategies, ADCore, ADStage2, ADStage3, ADResultsStore, ADStandards */
 
 var BASE = self.location.href.replace(/[^/]+$/, "");
 try {
@@ -11,6 +11,7 @@ try {
     BASE + "../ast.js",
     BASE + "../analysis-core.js",
     BASE + "../stage2-core.js",
+    BASE + "../stage3-core.js",
     BASE + "../results-store.js",
     BASE + "../engines/debug-engine.js"
   );
@@ -50,7 +51,7 @@ self.onmessage = function (ev) {
     self.postMessage({ type: "progress", stage: "analyze", percent: 55, detail: "Static analysis" });
     var result = engine.run();
 
-    self.postMessage({ type: "progress", stage: "stage2", percent: 72, detail: "Tests / mutation / dependency / regression" });
+    self.postMessage({ type: "progress", stage: "stage2", percent: 68, detail: "Tests / mutation / dependency / regression" });
     if (engine.stage2) {
       result.stage2 = engine.stage2;
       result.stage2_summary = {
@@ -61,6 +62,11 @@ self.onmessage = function (ev) {
         api: (engine.stage2.apiFindings || []).length,
         regression: engine.stage2.regression || null
       };
+    }
+    self.postMessage({ type: "progress", stage: "stage3", percent: 82, detail: "Correlation / Evidence Graph / DOM / Git" });
+    if (engine.stage3) {
+      result.stage3 = engine.stage3;
+      result.stage3_summary = engine.stage3.summary || null;
     }
     if (engine.codeModel) {
       result.code_model_summary = {
@@ -74,7 +80,7 @@ self.onmessage = function (ev) {
 
     self.postMessage({ type: "progress", stage: "merge", percent: 90, detail: "Merging findings" });
     result.strategies_count = result.strategies_count || (result.strategies_run || []).length;
-    result.version = "V6-Stage2";
+    result.version = "V6-Stage3";
     self.postMessage({ type: "progress", stage: "report", percent: 97, detail: "Generating report" });
     self.postMessage({ type: "result", result: result });
   } catch (err) {

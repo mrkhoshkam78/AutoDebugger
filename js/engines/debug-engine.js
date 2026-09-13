@@ -117,6 +117,32 @@
       } catch (e2) { this.stage2 = { error: String(e2 && e2.message || e2) }; }
     }
 
+    // Stage-3: Multi-Engine Correlation · Evidence Graph · DOM · Git · Adaptive
+    this.stage3 = null;
+    if (typeof ADStage3 !== "undefined" && ADStage3.runStage3) {
+      try {
+        this.stage3 = ADStage3.runStage3({
+          files: this.files,
+          codeModel: this.codeModel,
+          moduleGraph: this.moduleGraph,
+          cfgIssues: this.cfgIssues,
+          symbolicFindings: this.symbolicFindings,
+          problems: this.problems,
+          stage2: this.stage2 || {},
+          astMap: this.astMap,
+          gitMeta: this.gitMeta || null,
+          options: { version: "V6-Stage3" }
+        });
+        if (this.stage3 && this.stage3.problems) {
+          this.problems = this.stage3.problems;
+        }
+        // Promote high-signal DOM findings not already covered
+        this._emitStage3DomFindings();
+      } catch (e3) {
+        this.stage3 = { error: String(e3 && e3.message || e3) };
+      }
+    }
+
     if (typeof ADStandards !== "undefined" && ADStandards.postValidateFindings) {
       this.problems = ADStandards.postValidateFindings(this.problems);
     }
@@ -129,10 +155,12 @@
         "4:Strategy Selection", "5:Candidate Detection", "6:Data Flow",
         "7:Control Flow", "8:Symbolic Check", "9:Cross-file Check",
         "10:Validation", "11:Test Generation", "12:Mutation", "13:Dependency/API",
-        "14:Regression", "15:Root Cause Ranking", "16:Confidence", "17:Final Finding"
+        "14:Regression", "15:Root Cause Ranking", "16:Correlation", "17:Evidence Graph",
+        "18:DOM Analysis", "19:Git/Hotspot", "20:Adaptive Confidence", "21:Final Finding"
       ],
       problems: this.problems,
       stage2: this.stage2 || null,
+      stage3: this.stage3 || null,
       skipped: this.skipped,
       strategies_run: this.strategiesRun,
       strategies_count: this.strategiesRun.length,
@@ -146,9 +174,49 @@
         language: this.language,
         category: this.category,
         level: this.level,
-        strategies_run: this.strategiesRun.length
+        strategies_run: this.strategiesRun.length,
+        stage3: this.stage3 ? this.stage3.summary : null
       }
     };
+  };
+
+
+  DebugEngine.prototype._emitStage3DomFindings = function () {
+    if (!this.stage3 || !this.stage3.domFindings) return;
+    var self = this;
+    var strat = { id: "STAGE3-DOM", category: "Code / Logic", method: "stage3" };
+    var seen = {};
+    (this.problems || []).forEach(function (p) {
+      seen[(p.file_name || p.file || "") + ":" + (p.line || 0)] = true;
+    });
+    (this.stage3.domFindings || []).forEach(function (d) {
+      if (d.type === "dom_selector_valid" || d.type === "dom_safe_sink" || d.type === "dom_event" || d.type === "dom_create") return;
+      if (d.type === "dom_dataflow_sink") return; // already covered by security strategies
+      var key = (d.file || "") + ":" + (d.line || 0);
+      if (seen[key]) return;
+      seen[key] = true;
+      var sev = d.type === "dom_selector_missing" ? "medium" : "low";
+      var conf = d.strength || 0.55;
+      self._add(sev, d.file, d.line || 1, "dom",
+        d.explanation || d.detail || d.type,
+        "Static DOM analysis",
+        "Selector should resolve to an existing element or null-check before use",
+        d.detail || d.type,
+        d.type === "dom_selector_missing"
+          ? "Verify the element exists in HTML or guard with null checks"
+          : "Review DOM operation",
+        strat,
+        {
+          confidence: conf,
+          status: conf >= 0.7 ? "LIKELY" : "POSSIBLE",
+          simpleId: d.type,
+          evidence: [{ type: d.type, engine: "dom", file: d.file, line: d.line, snippet: d.detail, strength: conf }],
+          symptom: d.explanation || d.detail,
+          root_cause: d.type === "dom_selector_missing" ? "Selector does not match any id/class in project HTML" : "DOM static signal",
+          classificationHint: d.type === "dom_selector_missing" ? "POSSIBLE_ISSUE" : "CODE_SMELL"
+        }
+      );
+    });
   };
 
   DebugEngine.prototype._add = function (severity, file, line, section, description, why, expected, detected, recommendation, strategy, extras) {

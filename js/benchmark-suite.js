@@ -1,5 +1,5 @@
 /**
- * Auto Debugger V6 Stage-1 — Internal Benchmark Suite
+ * Auto Debugger V6 Stage-3 — Internal Benchmark Suite (V6+S1+S2+S3)
  */
 (function (global) {
   "use strict";
@@ -159,7 +159,88 @@
       category: "Code / Logic",
       files: { "a.js": "var x = null;\nif (x != null) {\n  x.foo = 1;\n}" },
       expect: { detected: false, allowSmells: true }
+    },
+    // ── Stage-3 Correlation / DOM / Git / Adaptive ──
+    {
+      id: "COR-SINGLE-ENGINE",
+      category: "Code / Logic",
+      files: { "a.js": "function f() {\n  return;\n  var dead = 1;\n}" },
+      expect: { detected: true }
+    },
+    {
+      id: "COR-MULTI-AGREE",
+      category: "Security",
+      files: {
+        "a.js": "var q = location.search;\nvar el = document.getElementById('out');\nel.innerHTML = q;"
+      },
+      expect: { detected: true, minConfidence: 0.65, preferFlow: true }
+    },
+    {
+      id: "DOM-VALID-SELECTOR",
+      category: "Code / Logic",
+      files: {
+        "index.html": "<div id=\"app\"></div>",
+        "a.js": "var el = document.getElementById('app');\nel.textContent = 'ok';"
+      },
+      expect: { detected: false, allowSmells: true }
+    },
+    {
+      id: "DOM-MISSING-SELECTOR",
+      category: "Code / Logic",
+      files: {
+        "index.html": "<div id=\"other\"></div>",
+        "a.js": "var el = document.getElementById('missing');\nel.textContent = 'x';"
+      },
+      expect: { detected: true }
+    },
+    {
+      id: "DOM-SAFE-TEXT",
+      category: "Security",
+      files: { "a.js": "el.textContent = location.search;" },
+      expect: { detected: false, allowSmells: true }
+    },
+    {
+      id: "DOM-UNSAFE-INNERHTML-SOURCE",
+      category: "Security",
+      files: {
+        "a.js": "const q = location.search;\nconst value = decodeURIComponent(q);\nelement.innerHTML = value;"
+      },
+      expect: { detected: true, minConfidence: 0.6 }
+    },
+    {
+      id: "DOM-INNERHTML-LITERAL",
+      category: "Security",
+      files: { "a.js": "element.innerHTML = \"<b>Hello</b>\";" },
+      expect: { detected: true, maxConfidence: 0.85 }
+    },
+    {
+      id: "GIT-NO-META",
+      category: "Syntax",
+      files: { "a.js": "function add(a,b){return a+b;}" },
+      expect: { detected: false }
+    },
+    {
+      id: "ADAPTIVE-SIMPLE",
+      category: "Syntax",
+      files: { "a.js": "function foo() { if (true) { return 1;\n" },
+      expect: { detected: true }
+    },
+    {
+      id: "CLEAN-ZERO-FP",
+      category: "Syntax",
+      files: {
+        "a.js": "/** safe */\nfunction add(a, b) {\n  return a + b;\n}\nexport { add };",
+        "b.css": "/* comment */ body { margin: 0; }"
+      },
+      expect: { detected: false }
+    },
+    {
+      id: "REG-CLEAN-BASELINE",
+      category: "Syntax",
+      files: { "a.js": "const x = 1;" },
+      expect: { detected: false }
     }
+
   ];
 
   function isRealFinding(p) {
@@ -250,7 +331,7 @@
       else tn++;
     });
     return {
-      version: "V6-Stage1",
+      version: "V6-Stage3",
       total: results.length,
       passed: passed,
       failed: results.length - passed,
