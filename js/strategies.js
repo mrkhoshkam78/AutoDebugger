@@ -129,9 +129,29 @@
     return false;
   }
 
+  function normalizeCategory(cat) {
+    if (!cat || cat === "all") return "Test All";
+    var map = {
+      "security": "Security", "sec": "Security",
+      "ui": "UI", "ux": "UX",
+      "performance": "Performance", "perf": "Performance",
+      "syntax": "Syntax",
+      "code": "Code / Logic", "logic": "Code / Logic", "code / logic": "Code / Logic",
+      "responsive": "Responsive behavior", "responsive behavior": "Responsive behavior",
+      "structure": "Structure / Architecture", "architecture": "Structure / Architecture",
+      "structure / architecture": "Structure / Architecture",
+      "test all": "Test All", "testall": "Test All"
+    };
+    var k = String(cat).trim();
+    if (ALL_CATEGORIES.indexOf(k) !== -1) return k;
+    var low = k.toLowerCase();
+    return map[low] || k;
+  }
+
   function selectStrategies(category, level, ctx) {
     level = Math.min(4, Math.max(1, parseInt(level, 10) || 1));
     var cap = LEVEL_CAPS[level] || 5;
+    category = normalizeCategory(category);
     var categories = category === "Test All" ? ALL_CATEGORIES.slice() : [category];
     var candidates = [];
     var skipped = [];
@@ -166,6 +186,7 @@
 
   global.ADStrategies = {
     selectStrategies: selectStrategies,
+    normalizeCategory: normalizeCategory,
     getAllCategories: function () { return ALL_CATEGORIES.slice(); },
     getRegistry: function () { return STRATEGIES.slice(); },
     getCaps: function () {
