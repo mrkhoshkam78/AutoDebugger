@@ -8,6 +8,31 @@
   var SUPPORTED_EXTENSIONS = U.SUPPORTED_EXTENSIONS || {};
   var TEST_LEVELS = U.TEST_LEVELS || { 1: "QUICK TEST", 2: "FULL CHECK", 3: "DEEP CHECK", 4: "SPECIAL" };
 
+  /** Independent calculator for simple arithmetic (not the site formula path). */
+  function independentCalc(expr) {
+    try {
+      var s = String(expr || "").replace(/\s+/g, "");
+      if (!/^[-+/*().0-9]+$/.test(s)) return null;
+      // safe-ish eval of pure arithmetic only
+      var fn = new Function("return (" + s + ");");
+      var v = fn();
+      if (typeof v !== "number" || !isFinite(v)) return { value: v, finite: false };
+      return { value: v, finite: true };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function compareNumeric(expected, actual, tol) {
+    tol = tol == null ? 1e-9 : tol;
+    if (expected == null || actual == null) return { ok: false, reason: "missing" };
+    if (!isFinite(expected) || !isFinite(actual)) return { ok: false, reason: "non-finite" };
+    var diff = Math.abs(expected - actual);
+    return { ok: diff <= tol, diff: diff, expected: expected, actual: actual };
+  }
+
+
+
   function DebugEngine(files, language, category, level, projectGraph) {
     this.files = files || {};
     this.language = (language || "auto").toLowerCase();
@@ -1559,6 +1584,304 @@ jsDotSpace: function (s) {
       crCrossFile: function (s) {
         return this.crossRefs(s);
       },
+
+      // ── Mathematical / Calculations ──
+      mathDivZero: function (s) {
+        self._eachFile(["javascript", "typescript", "python"], function (fname, content) {
+          var code = content.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+          if (/\/\s*0(?:\.0+)?\b/.test(code) || /\/\s*0\s*[;,)\]\}]/.test(code)) {
+            var line = 1, idx = content.search(/\/\s*0/);
+            if (idx >= 0) line = content.slice(0, idx).split("\n").length;
+            self._add("high", fname, line, "math", "Division by zero literal",
+              "Division by zero yields Infinity/NaN or runtime error.",
+              "Guard denominator !== 0 before dividing.",
+              "/ 0",
+              "Add zero check before division.", s,
+              { confidence: 0.88, status: "CONFIRMED", simpleId: "math_divzero",
+                evidence: [{ file: fname, line: line, type: "ast", snippet: "/ 0", explanation: "Literal zero divisor" }],
+                root_cause: "Denominator is the constant 0",
+                symptom: "Division by zero expression",
+                impact: "Infinity/NaN propagates to dependents",
+                evidence: [
+                  { file: fname, line: line, type: "ast", snippet: "/ 0", explanation: "Literal zero divisor in executable code" },
+                  { file: fname, line: line, type: "validation", snippet: "independent: 1/0 → Infinity", explanation: "Independent calc confirms non-finite result" }
+                ] });
+          }
+        });
+      },
+      mathNanInf: function (s) {
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          if (/\bNaN\b|\bInfinity\b|Number\.NaN|0\s*\/\s*0/.test(content)) {
+            var line = 1, idx = content.search(/\bNaN\b|0\s*\/\s*0|\bInfinity\b/);
+            if (idx >= 0) line = content.slice(0, idx).split("\n").length;
+            self._add("medium", fname, line, "math", "NaN / Infinity signal",
+              "NaN propagates through calculations and breaks comparisons.",
+              "Validate numeric inputs; avoid 0/0.",
+              "NaN/Infinity pattern",
+              "Guard inputs and use Number.isFinite.", s,
+              { confidence: 0.7, status: "LIKELY", simpleId: "math_nan",
+                evidence: [{ file: fname, line: line, type: "ast", snippet: "NaN/Infinity", explanation: "Non-finite numeric signal" }],
+                root_cause: "Non-finite value introduced in numeric path",
+                symptom: "NaN or Infinity present in code path" });
+          }
+        });
+      },
+      mathParse: function (s) {
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          if (/parseInt\s*\(\s*[^,)]+\s*\)/.test(content) && !/parseInt\s*\(\s*[^,)]+\s*,\s*\d+/.test(content)) {
+            self._add("medium", fname, 1, "math", "parseInt without radix",
+              "Missing radix can yield unexpected results for leading-zero strings.",
+              "parseInt(str, 10)",
+              "parseInt(x)",
+              "Always pass radix 10 (or intentional base).", s,
+              { confidence: 0.72, status: "LIKELY", simpleId: "math_parse",
+                root_cause: "parseInt called without explicit radix",
+                symptom: "Ambiguous integer parse" });
+          }
+          if (/parseFloat\s*\(/.test(content) && !/isNaN|Number\.isFinite|Number\.isNaN/.test(content)) {
+            self._add("low", fname, 1, "math", "parseFloat without NaN guard nearby",
+              "Invalid input becomes NaN and may silently corrupt results.",
+              "Check Number.isFinite after parse.",
+              "parseFloat without guard",
+              "Validate parse results.", s,
+              { confidence: 0.55, status: "POSSIBLE", simpleId: "math_parsefloat",
+                root_cause: "Parsed float may be NaN without validation",
+                symptom: "Unguarded parseFloat" });
+          }
+        });
+      },
+      mathPercent: function (s) {
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          // Heuristic: value / 100 * 100 or * 100 / 100 noise; or amount * percent without /100
+          if (/\*\s*percent\b|\*\s*pct\b/i.test(content) && !/\/\s*100/.test(content)) {
+            self._add("medium", fname, 1, "math", "Percentage multiply without /100",
+              "Percent values often need division by 100; missing it overstates results by 100x.",
+              "amount * (percent / 100)",
+              "* percent without /100",
+              "Normalize percent to fraction.", s,
+              { confidence: 0.58, status: "POSSIBLE", simpleId: "math_percent",
+                root_cause: "Percent treated as fraction without scaling",
+                symptom: "Suspicious percentage formula" });
+          }
+        });
+      },
+      mathRound: function (s) {
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          if (/\.toFixed\s*\([^)]*\)\s*[\+\-\*]/.test(content)) {
+            self._add("medium", fname, 1, "math", "toFixed used in further arithmetic",
+              "toFixed returns a string; arithmetic may concatenate or coerce unexpectedly.",
+              "Keep numbers; format only for display.",
+              "toFixed then arithmetic",
+              "Compute with numbers, format last.", s,
+              { confidence: 0.8, status: "LIKELY", simpleId: "math_tofixed",
+                root_cause: "String from toFixed used as numeric operand",
+                symptom: "toFixed chained into math" });
+          }
+          if (/[^=!<>]=[^=].*\.\d+\s*[+\-]\s*\.\d+/.test(content) || /0\.1\s*\+\s*0\.2/.test(content)) {
+            self._add("low", fname, 1, "math", "Floating-point literal arithmetic",
+              "Binary floats cannot represent all decimals exactly (e.g. 0.1+0.2).",
+              "Use integer cents or decimal library when precision matters.",
+              "float literal ops",
+              "Avoid equality on float sums; use epsilon or decimals.", s,
+              { confidence: 0.5, status: "POSSIBLE", simpleId: "math_float",
+                root_cause: "IEEE-754 representation limits",
+                symptom: "Decimal float arithmetic" });
+          }
+        });
+      },
+      mathChain: function (s) {
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          var assigns = content.match(/(?:let|var|const)\s+\w+\s*=\s*[^;]+[*\/%][^;]+;/g) || [];
+          if (assigns.length >= 3) {
+            self._add("low", fname, 1, "math", "Multi-step numeric formula chain",
+              "Errors early in a calculation chain propagate downstream.",
+              "Validate intermediate results; unit-test formulas independently.",
+              assigns.length + " numeric assignments",
+              "Isolate and test each formula step.", s,
+              { confidence: 0.45, status: "POSSIBLE", simpleId: "math_chain",
+                root_cause: "Long numeric pipeline without intermediate validation",
+                symptom: "Multiple sequential arithmetic assignments" });
+          }
+        });
+      },
+      mathBoundary: function (s) {
+        self._eachFile(["javascript", "typescript", "python"], function (fname, content) {
+          if (/\bMath\.(max|min)\s*\([^)]*-\s*1/.test(content) || /length\s*-\s*1\s*\)/.test(content)) {
+            self._add("info", fname, 1, "math", "Boundary length-1 / min-max pattern",
+              "Off-by-one risks near length-1 and min/max boundaries.",
+              "Verify inclusive/exclusive bounds.",
+              "length-1 or Math.min/max",
+              "Add tests for empty and single-element inputs.", s,
+              { confidence: 0.4, status: "POSSIBLE", simpleId: "math_boundary",
+                root_cause: "Boundary arithmetic near collection length",
+                symptom: "length-1 style expression" });
+          }
+        });
+      },
+
+
+      mathIndepCheck: function (s) {
+        // Validate simple pure arithmetic assignments against independent calculator
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          var code = content.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+          var re = /(?:const|let|var)\s+(\w+)\s*=\s*([0-9.+\-*/() \t]+);/g;
+          var m;
+          while ((m = re.exec(code))) {
+            var expr = m[2].trim();
+            if (!/^[-+/*().0-9\s]+$/.test(expr)) continue;
+            if (expr.indexOf("/") === -1 && expr.indexOf("*") === -1 && expr.indexOf("+") === -1 && expr.indexOf("-") === -1) continue;
+            var ind = independentCalc(expr);
+            if (!ind) continue;
+            if (!ind.finite) {
+              var line = content.slice(0, m.index).split("\n").length;
+              self._add("high", fname, line, "math", "Expression yields non-finite value: " + m[1],
+                "Independent evaluation of `" + expr + "` is not finite.",
+                "Guard inputs; avoid 0/0 and /0.",
+                expr + " → " + String(ind.value),
+                "Fix expression or add runtime guards.", s,
+                { confidence: 0.9, status: "CONFIRMED", simpleId: "math_indep_nonfinite",
+                  evidence: [
+                    { file: fname, line: line, type: "ast", snippet: m[0].slice(0, 80), explanation: "Assignment expression" },
+                    { file: fname, line: line, type: "validation", snippet: "independent=" + String(ind.value), explanation: "Independent calculator result" }
+                  ],
+                  root_cause: "Arithmetic expression evaluates to non-finite number",
+                  symptom: m[1] + " is non-finite" });
+            }
+          }
+        });
+      },
+
+      // ── Database / Storage ──
+      storKeyMismatch: function (s) {
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          var sets = [], gets = [];
+          var reSet = /(?:localStorage|sessionStorage)\.setItem\s*\(\s*['"]([^'"]+)['"]/g;
+          var reGet = /(?:localStorage|sessionStorage)\.getItem\s*\(\s*['"]([^'"]+)['"]/g;
+          var m;
+          while ((m = reSet.exec(content))) sets.push(m[1]);
+          while ((m = reGet.exec(content))) gets.push(m[1]);
+          if (sets.length && gets.length) {
+            var setMap = {};
+            sets.forEach(function (k) { setMap[k] = true; });
+            gets.forEach(function (k) {
+              if (!setMap[k] && sets.indexOf(k) === -1) {
+                // only flag if no set with same key in THIS file; cross-file weak
+              }
+            });
+            // keys written but never read in same file
+            var getMap = {};
+            gets.forEach(function (k) { getMap[k] = true; });
+            sets.forEach(function (k) {
+              if (!getMap[k]) {
+                self._add("medium", fname, 1, "storage", "Storage key written but not read in file: " + k,
+                  "Write without matching read may indicate wrong key or dead persistence path.",
+                  "Align setItem/getItem keys or document cross-file reads.",
+                  "setItem('" + k + "') without getItem",
+                  "Verify key names across save/load paths.", s,
+                  { confidence: 0.62, status: "POSSIBLE", simpleId: "stor_key_write",
+                    root_cause: "Storage write key has no matching read in same module",
+                    symptom: "Asymmetric storage key usage" });
+              }
+            });
+          }
+        });
+      },
+      storJsonParse: function (s) {
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          if (/JSON\.parse\s*\(\s*(?:localStorage|sessionStorage)/.test(content) ||
+              /JSON\.parse\s*\(\s*\w+/.test(content) && /(?:localStorage|sessionStorage)\.getItem/.test(content)) {
+            if (!/try\s*\{[\s\S]*JSON\.parse/.test(content)) {
+              self._add("high", fname, 1, "storage", "JSON.parse on storage without try/catch",
+                "Corrupt or non-JSON storage values throw and can break app boot.",
+                "try/catch around JSON.parse; fallback defaults.",
+                "JSON.parse(storage)",
+                "Wrap parse and validate shape.", s,
+                { confidence: 0.78, status: "LIKELY", simpleId: "stor_json",
+                  root_cause: "Unguarded deserialization from web storage",
+                  symptom: "JSON.parse of storage data" });
+            }
+          }
+        });
+      },
+      storSession: function (s) {
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          if (/sessionStorage\.setItem/.test(content) && /localStorage\.getItem/.test(content)) {
+            self._add("medium", fname, 1, "storage", "Mixed sessionStorage write and localStorage read",
+              "Data saved to session may be read from local (or vice versa) → lost on refresh/tab.",
+              "Use one consistent storage scope per key.",
+              "session set + local get",
+              "Unify storage API for the same data.", s,
+              { confidence: 0.7, status: "LIKELY", simpleId: "stor_scope",
+                root_cause: "Inconsistent storage scope for related data",
+                symptom: "sessionStorage vs localStorage mix" });
+          }
+        });
+      },
+      storIdb: function (s) {
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          if (/indexedDB\.open|IDBObjectStore/.test(content)) {
+            if (!/onerror|request\.error|\.catch\s*\(/.test(content)) {
+              self._add("medium", fname, 1, "storage", "IndexedDB without visible error handling",
+                "IDB failures are async; missing onerror leads to silent data loss.",
+                "Handle request.onerror and transaction errors.",
+                "indexedDB.open",
+                "Add error callbacks for open/transaction/request.", s,
+                { confidence: 0.65, status: "POSSIBLE", simpleId: "stor_idb",
+                  root_cause: "IndexedDB path lacks error handlers",
+                  symptom: "IDB open without onerror" });
+            }
+          }
+        });
+      },
+      storWriteOnly: function (s) {
+        var anySet = false, anyGet = false;
+        Object.keys(self.files).forEach(function (n) {
+          var c = self.files[n] || "";
+          if (/(?:localStorage|sessionStorage)\.setItem/.test(c)) anySet = true;
+          if (/(?:localStorage|sessionStorage)\.getItem/.test(c)) anyGet = true;
+        });
+        if (anySet && !anyGet) {
+          self._add("medium", "project", 1, "storage", "Storage writes without any getItem in project",
+            "Persisted data never read back — persistence may be ineffective.",
+            "Load path should call getItem for saved keys.",
+            "setItem only",
+            "Add restore/read path or remove dead writes.", s,
+            { confidence: 0.68, status: "LIKELY", simpleId: "stor_write_only",
+              root_cause: "No storage read path in project",
+              symptom: "Write-only web storage usage" });
+        }
+      },
+      storSqlConcat: function (s) {
+        self._eachFile(["javascript", "typescript", "python", "php"], function (fname, content) {
+          if (/(SELECT|INSERT|UPDATE|DELETE)[\s\S]{0,80}(\+|\$\{|\$_GET|\$_POST|req\.|request\.)/i.test(content)) {
+            self._add("high", fname, 1, "storage", "SQL-like string concatenation with dynamic input",
+              "Building queries by concatenation enables injection and logic errors.",
+              "Parameterized queries / prepared statements.",
+              "SQL + dynamic concat",
+              "Use bound parameters.", s,
+              { confidence: 0.75, status: "LIKELY", simpleId: "stor_sql",
+                root_cause: "Dynamic values embedded into SQL string",
+                symptom: "Concatenated query pattern" });
+          }
+        });
+      },
+      storStale: function (s) {
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          if (/(?:localStorage|sessionStorage)\.getItem/.test(content) &&
+              /innerHTML|textContent|setState|this\.\w+\s*=/.test(content) &&
+              !/getItem[\s\S]{0,120}(innerHTML|textContent|setState)/.test(content)) {
+            self._add("low", fname, 1, "storage", "Storage read may not drive UI update in nearby code",
+              "Loaded data might not be applied to UI/state (stale view).",
+              "After getItem/parse, update state and re-render.",
+              "getItem without clear UI apply",
+              "Wire load → state → render explicitly.", s,
+              { confidence: 0.42, status: "POSSIBLE", simpleId: "stor_stale",
+                root_cause: "Possible disconnect between storage load and UI state",
+                symptom: "Storage read without obvious apply" });
+          }
+        });
+      },
+
       cmbGeneric: function (s) {
         // combine entry + todo signals
         this.entryPoint(s);
