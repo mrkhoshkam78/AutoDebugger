@@ -11,7 +11,11 @@
   function DebugEngine(files, language, category, level, projectGraph) {
     this.files = files || {};
     this.language = (language || "auto").toLowerCase();
-    this.category = category || "Code / Logic";
+    if (global.ADStrategies && ADStrategies.normalizeCategory) {
+      this.category = ADStrategies.normalizeCategory(category || "Test All");
+    } else {
+      this.category = category || "Code / Logic";
+    }
     this.level = Math.min(4, Math.max(1, parseInt(level, 10) || 1));
     this.graph = projectGraph || null;
     this.problems = [];
@@ -43,6 +47,15 @@
       has: has,
       isWebUi: has.html || has.css || has.js || has.ts
     };
+  };
+
+
+  /** Category gate: selected category must allow this strategy category (Test All allows all). */
+  DebugEngine.prototype._categoryAllowed = function (strategyCategory) {
+    var sel = this.category || "Test All";
+    if (sel === "Test All" || sel === "all") return true;
+    if (!strategyCategory) return false;
+    return strategyCategory === sel;
   };
 
   DebugEngine.prototype.run = function () {
@@ -89,8 +102,8 @@
       }
     }
 
-    // Stage-1: emit CFG / symbolic findings as candidates (gated by finalizeFinding)
-    this._emitStage1StructuralFindings();
+    // Stage-1: emit CFG / symbolic only when category allows Code/Logic or Test All
+    if (this._categoryAllowed("Code / Logic")) this._emitStage1StructuralFindings();
 
     // Stage-2: Test Gen / Mutation / Dependency / Regression / Root-Cause (orchestrated)
     this.stage2 = null;
@@ -113,7 +126,8 @@
           }
         );
         // Promote high-confidence dependency findings through same gate
-        this._emitStage2DependencyFindings();
+        if (this._categoryAllowed("Structure / Architecture") || this._categoryAllowed("Security"))
+          this._emitStage2DependencyFindings();
       } catch (e2) { this.stage2 = { error: String(e2 && e2.message || e2) }; }
     }
 
@@ -137,7 +151,8 @@
           this.problems = this.stage3.problems;
         }
         // Promote high-signal DOM findings not already covered
-        this._emitStage3DomFindings();
+        if (this._categoryAllowed("Security") || this._categoryAllowed("UI") || this._categoryAllowed("Code / Logic"))
+          this._emitStage3DomFindings();
       } catch (e3) {
         this.stage3 = { error: String(e3 && e3.message || e3) };
       }
@@ -145,6 +160,18 @@
 
     if (typeof ADStandards !== "undefined" && ADStandards.postValidateFindings) {
       this.problems = ADStandards.postValidateFindings(this.problems);
+    }
+    // Category-aware filter: only keep findings matching selected category (unless Test All)
+    if (this.category && this.category !== "Test All" && this.category !== "all") {
+      var selfCat = this.category;
+      this.problems = (this.problems || []).filter(function (p) {
+        var c = p.category || "";
+        var related = p.related_categories || [];
+        if (c === selfCat) return true;
+        if (related.indexOf(selfCat) !== -1) return true;
+        // allow if detecting strategy category matches
+        return false;
+      });
     }
     this.testResults[0].status = "completed";
     this.testResults[0].problems_found = this.problems.length;
