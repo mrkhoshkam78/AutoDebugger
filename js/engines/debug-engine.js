@@ -1,5 +1,5 @@
 /**
- * Auto Debugger V5.0 — Evidence-driven (Candidate → finalizeFinding)
+ * Auto Debugger V9.0 — Evidence-driven (Candidate → finalizeFinding)
  */
 (function (global) {
   "use strict";
@@ -108,7 +108,7 @@
     if (!this.astMap && globalThis.ADAst) {
       try { this.astMap = ADAst.analyzeProject(this.files); } catch (e) { this.astMap = null; }
     }
-    // V6 Stage-1: Code Model + Deep Data-Flow + CFG + Symbolic + Module Graph
+    // V9 Stage-1: Code Model + Deep Data-Flow + CFG + Symbolic + Module Graph
     this.codeModel = null;
     this.moduleGraph = null;
     this.cfgIssues = [];
@@ -134,13 +134,23 @@
     }];
 
     var methods = this._methodMap();
+    var executedEngines = {};
     for (var i = 0; i < (sel.selected || []).length; i++) {
       var s = sel.selected[i];
+      // V9 Engine Isolation: skip strategy if its specialized engine is not in Supervisor plan
+      if (this.supervisorPlan && typeof ADSupervisor !== "undefined" && ADSupervisor.strategyToEngine) {
+        var engId = ADSupervisor.strategyToEngine(s);
+        if (engId && !ADSupervisor.isEngineAllowed(engId, this.supervisorPlan)) {
+          continue; // true isolation — do not execute unrelated specialized engine
+        }
+        if (engId) executedEngines[engId] = true;
+      }
       var fn = methods[s.method];
       if (typeof fn === "function") {
         try { fn.call(this, s); } catch (e) { /* skip broken strategy */ }
       }
     }
+    this.enginesExecuted = Object.keys(executedEngines);
 
     // Stage-1: emit CFG / symbolic only when category allows Code/Logic or Test All
     if (this._categoryAllowed("Code / Logic")) this._emitStage1StructuralFindings();
@@ -161,7 +171,7 @@
             cfgIssues: this.cfgIssues,
             symbolicFindings: this.symbolicFindings,
             projectKey: pk,
-            version: "V6-Stage2",
+            version: "V9-Stage2",
             maxCandidates: 40
           }
         );
@@ -185,7 +195,7 @@
           stage2: this.stage2 || {},
           astMap: this.astMap,
           gitMeta: this.gitMeta || null,
-          options: { version: "V6-Stage3" }
+          options: { version: "V9-Stage3" }
         });
         if (this.stage3 && this.stage3.problems) {
           this.problems = this.stage3.problems;
@@ -299,7 +309,7 @@
 
   DebugEngine.prototype._add = function (severity, file, line, section, description, why, expected, detected, recommendation, strategy, extras) {
     extras = extras || {};
-    // V5.0: Rule → Candidate → finalizeFinding (Evidence + Context + Validation + Confidence)
+    // V9.0: Rule → Candidate → finalizeFinding (Evidence + Context + Validation + Confidence)
     if (typeof ADStandards !== "undefined" && ADStandards.finalizeFinding && ADStandards.createCandidateFromAdd) {
       var candidate = ADStandards.createCandidateFromAdd(
         severity, file, line, section, description, why, expected, detected, recommendation, strategy, extras, this.ctx
@@ -314,6 +324,9 @@
       if (!finding.category) finding.category = this.category;
       if (!finding.related_categories || !finding.related_categories.length) {
         finding.related_categories = [finding.category || this.category];
+      }
+      if (typeof ADExplain !== "undefined" && ADExplain.enrichFinding) {
+        ADExplain.enrichFinding(finding);
       }
       this.problems.push(finding);
       return;
