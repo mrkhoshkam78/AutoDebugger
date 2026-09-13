@@ -7,6 +7,7 @@ try {
     BASE + "../lib/utils.js",
     BASE + "../analysis-cache.js",
     BASE + "../analysis-standards.js",
+    BASE + "../explanation.js",
     BASE + "../strategies.js",
     BASE + "../project-mapper.js",
     BASE + "../ast.js",
