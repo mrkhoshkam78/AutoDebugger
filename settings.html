@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="description" content="Auto Debugger — browser-only static analysis" />
-  <title>Settings · Auto Debugger</title>
+  <title>Settings · Auto Debugger V7.0</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,9 +14,9 @@
   <aside class="app-sidebar" id="appSidebar" aria-label="Main navigation">
     <div class="sidebar-brand"><span class="sidebar-logo">AD</span><span class="sidebar-title">Auto Debugger</span></div>
     <nav class="sidebar-nav">
-      <a class="nav-item" href="index.html"><span>Analysis</span></a>
-      <a class="nav-item" href="assistant.html"><span>Assistant</span></a>
-      <a class="nav-item active" href="settings.html"><span>Settings</span></a>
+      <a class="nav-item" href="index.html"><span data-i18n="navAnalysis">Analysis</span></a>
+      <a class="nav-item" href="assistant.html"><span data-i18n="navAssistant">Assistant</span></a>
+      <a class="nav-item active" href="settings.html"><span data-i18n="navSettings">Settings</span></a>
     </nav>
     <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Close">×</button>
   </aside>
@@ -28,58 +28,63 @@
         <h1 data-i18n="navSettings">Settings</h1>
       </div>
     </header>
-    <main class="settings-main">
+        <main class="settings-main">
       <section class="panel settings-card">
-        <h2>Appearance</h2>
-        <label>Theme
+        <h2 data-i18n="settingsAppearance">Appearance</h2>
+        <label><span data-i18n="settingsTheme">Theme</span>
           <select id="setTheme">
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
+            <option value="dark" data-i18n="themeDark">Dark</option>
+            <option value="light" data-i18n="themeLight">Light</option>
           </select>
         </label>
-        <label>Language
+        <label><span data-i18n="settingsLang">UI language</span>
           <select id="setLang">
-            <option value="en">English</option>
-            <option value="fa">فارسی</option>
+            <option value="en" data-i18n="langEn">English</option>
+            <option value="fa" data-i18n="langFa">فارسی</option>
           </select>
         </label>
       </section>
       <section class="panel settings-card">
-        <h2>Analysis defaults</h2>
-        <label>Default level
+        <h2 data-i18n="settingsAnalysis">Analysis defaults</h2>
+        <label><span data-i18n="settingsDefaultLevel">Default level</span>
           <select id="setLevel">
-            <option value="1">Quick</option>
-            <option value="2">Full</option>
-            <option value="3">Deep</option>
-            <option value="4">Special</option>
+            <option value="1" data-i18n="levelQuick">Quick</option>
+            <option value="2" data-i18n="levelFull">Full</option>
+            <option value="3" data-i18n="levelDeep">Deep</option>
+            <option value="4" data-i18n="levelSpecial">Special</option>
           </select>
         </label>
       </section>
-      <section class="panel settings-card">
-        <h2>LLM Provider (optional)</h2>
-        <p class="hint">API key is kept in sessionStorage only — never hard-coded. Leave provider on None to use local evidence mode.</p>
-        <label>Provider
-          <select id="setProvider">
-            <option value="none">None (local)</option>
-            <option value="openai-compatible">OpenAI-compatible endpoint</option>
-          </select>
-        </label>
-        <label>Endpoint URL
-          <input type="url" id="setEndpoint" placeholder="https://api.example.com/v1/chat/completions" />
-        </label>
-        <label>Model
-          <input type="text" id="setModel" placeholder="model-id" />
-        </label>
-        <label>API Key
-          <input type="password" id="setApiKey" placeholder="sk-…" autocomplete="off" />
-        </label>
-        <button type="button" class="btn primary" id="saveLlm">Save LLM settings</button>
-        <p id="llmSaveMsg" class="hint" hidden></p>
+      <section class="panel settings-card settings-collapsible" id="llmSection">
+        <button type="button" class="collapse-toggle" id="llmToggle" aria-expanded="false">
+          <span data-i18n="settingsLlmTitle">LLM Provider (optional)</span>
+          <span class="collapse-chevron" aria-hidden="true">▸</span>
+        </button>
+        <div class="collapse-body" id="llmBody" hidden>
+          <p class="hint" data-i18n="settingsLlmHint">API key stays in session only — never stored in source. Leave as None for local evidence mode.</p>
+          <label><span data-i18n="settingsProvider">Provider</span>
+            <select id="setProvider">
+              <option value="none" data-i18n="providerNone">None (local)</option>
+              <option value="openai-compatible" data-i18n="providerOpenAI">OpenAI-compatible endpoint</option>
+            </select>
+          </label>
+          <label><span data-i18n="settingsEndpoint">Endpoint URL</span>
+            <input type="url" id="setEndpoint" placeholder="https://api.example.com/v1/chat/completions" />
+          </label>
+          <label><span data-i18n="settingsModel">Model</span>
+            <input type="text" id="setModel" placeholder="model-id" />
+          </label>
+          <label><span data-i18n="settingsApiKey">API Key</span>
+            <input type="password" id="setApiKey" placeholder="sk-…" autocomplete="off" />
+          </label>
+          <button type="button" class="btn primary" id="saveLlm" data-i18n="settingsSaveLlm">Save LLM settings</button>
+          <p id="llmSaveMsg" class="hint" hidden></p>
+        </div>
       </section>
       <section class="panel settings-card">
-        <h2>Storage</h2>
-        <button type="button" class="btn secondary" id="clearChatMem">Clear conversation memory</button>
-        <button type="button" class="btn secondary" id="clearFindings">Clear saved findings</button>
+        <h2 data-i18n="settingsStorage">Storage</h2>
+        <button type="button" class="btn secondary" id="clearChatMem" data-i18n="settingsClearChat">Clear conversation memory</button>
+        <button type="button" class="btn secondary" id="clearFindings" data-i18n="settingsClearFindings">Clear saved findings</button>
       </section>
     </main>
   </div>

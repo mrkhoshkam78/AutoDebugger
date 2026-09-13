@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="description" content="Auto Debugger — browser-only static analysis" />
-  <title>Assistant · Auto Debugger</title>
+  <title>Assistant · Auto Debugger V7.0</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,9 +14,9 @@
   <aside class="app-sidebar" id="appSidebar" aria-label="Main navigation">
     <div class="sidebar-brand"><span class="sidebar-logo">AD</span><span class="sidebar-title">Auto Debugger</span></div>
     <nav class="sidebar-nav">
-      <a class="nav-item" href="index.html"><span>Analysis</span></a>
-      <a class="nav-item active" href="assistant.html"><span>Assistant</span></a>
-      <a class="nav-item" href="settings.html"><span>Settings</span></a>
+      <a class="nav-item" href="index.html"><span data-i18n="navAnalysis">Analysis</span></a>
+      <a class="nav-item active" href="assistant.html"><span data-i18n="navAssistant">Assistant</span></a>
+      <a class="nav-item" href="settings.html"><span data-i18n="navSettings">Settings</span></a>
     </nav>
     <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Close">×</button>
   </aside>
@@ -24,9 +24,9 @@
   <div class="app-shell">
     <header class="header">
       <div class="header-left">
-        <button type="button" class="icon-btn menu-btn" id="sidebarOpen" aria-label="Menu">☰</button>
+        <button type="button" class="icon-btn menu-btn" id="sidebarOpen" data-i18n-title="menuOpen" aria-label="Menu">☰</button>
         <h1 data-i18n="assistantTitle">Assistant</h1>
-        <span class="version" id="llmStatus">Local evidence mode</span>
+        <span class="version" id="llmStatus" data-i18n="assistantLocal">Local evidence mode</span>
       </div>
       <div class="header-right">
         <span class="local-badge">Local · Offline</span>
@@ -34,17 +34,17 @@
     </header>
     <main class="assistant-main">
       <div class="assistant-context" id="assistantContext">
-        <span data-i18n="assistantCtxHint">Uses latest analysis findings from this browser (Results Store). Engines remain the source of truth.</span>
+        <span data-i18n="assistantCtxHint">Uses saved findings in this browser. Analysis engines remain the source of truth.</span>
       </div>
       <div class="chat-messages chat-messages-full" id="chatMessages" role="log" aria-live="polite">
-        <div class="chat-empty" id="chatEmpty">Ask about findings, priority, root cause, or which category to run next.</div>
+        <div class="chat-empty" id="chatEmpty" data-i18n="assistantEmpty">Ask about findings, priority, or why a bug was reported.</div>
       </div>
       <div class="chat-dock">
-        <textarea id="chatInput" rows="2" placeholder="Message…" aria-label="Message"></textarea>
+        <textarea id="chatInput" rows="2" data-i18n-placeholder="assistantPlaceholder" placeholder="Ask about findings…" aria-label="Message"></textarea>
         <div class="chat-dock-actions">
-          <button type="button" class="btn secondary btn-sm" id="chatClear">Clear</button>
-          <button type="button" class="btn secondary btn-sm" id="chatSummarize">Summarize</button>
-          <button type="button" class="btn primary" id="chatSend">Send</button>
+          <button type="button" class="btn secondary btn-sm chat-action-btn" id="chatClear" data-i18n="clearChat">Clear chat</button>
+          <button type="button" class="btn secondary btn-sm chat-action-btn" id="chatSummarize" data-i18n="summarizeFindings">Summarize findings</button>
+          <button type="button" class="btn primary chat-send-btn" id="chatSend" data-i18n="send">Send</button>
         </div>
       </div>
     </main>

@@ -1508,3 +1508,97 @@ body.has-sidebar > footer {
   background: var(--primary-soft);
   border: 1px solid var(--border);
 }
+
+/* Assistant dock buttons — match global design system */
+.chat-dock-actions .btn,
+.chat-action-btn,
+.chat-send-btn {
+  min-height: 40px;
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
+}
+.chat-dock-actions .btn.primary,
+.chat-send-btn {
+  background: var(--primary);
+  color: #fff;
+  border: 1px solid transparent;
+  box-shadow: var(--shadow-xs);
+}
+.chat-dock-actions .btn.primary:hover,
+.chat-send-btn:hover {
+  background: var(--primary-hover);
+}
+.chat-dock-actions .btn.secondary,
+.chat-action-btn {
+  background: var(--primary-soft);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+}
+.chat-dock-actions .btn.secondary:hover,
+.chat-action-btn:hover {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.chat-dock-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Settings collapsible LLM */
+.collapse-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 650;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 0;
+  text-align: inherit;
+}
+.collapse-chevron {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  transition: transform var(--transition);
+}
+.collapse-toggle.open .collapse-chevron {
+  transform: rotate(0deg);
+}
+.collapse-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+.collapse-body[hidden] {
+  display: none !important;
+}
+.settings-collapsible {
+  padding-top: var(--space-4);
+  padding-bottom: var(--space-4);
+}
+
+/* Sidebar nav text readability */
+.nav-item span {
+  color: inherit;
+  font-weight: 500;
+}
+.sidebar-title {
+  color: var(--text);
+  font-size: 0.95rem;
+}
