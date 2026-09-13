@@ -64,7 +64,7 @@
         </div>
         <div>
           <h1 data-i18n="appTitle">Auto Debugger</h1>
-          <span class="version" data-i18n="version">V8.05</span>
+          <span class="version" data-i18n="version">V9.0</span>
         </div>
       </div>
       <div class="header-right">
@@ -177,6 +177,11 @@
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
           <span data-i18n="startBtn">Start analysis</span>
         </button>
+        <div class="worker-controls" id="workerControls" hidden style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+          <button type="button" class="btn secondary" id="pauseBtn" data-i18n="pauseBtn">Pause</button>
+          <button type="button" class="btn secondary" id="resumeBtn" data-i18n="resumeBtn" hidden>Resume</button>
+          <button type="button" class="btn danger" id="cancelBtn" data-i18n="cancelBtn">Cancel</button>
+        </div>
 
         <div class="progress-wrap" id="progressWrap" hidden>
           <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>

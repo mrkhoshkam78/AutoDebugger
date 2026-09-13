@@ -89,6 +89,9 @@
     updateLevelDesc();
     renderFileList();
     if (analysisState === "done" || allProblems.length) {
+      if (typeof ADExplain !== "undefined" && ADExplain.reLocalizeFinding) {
+        allProblems = allProblems.map(function (p) { return ADExplain.reLocalizeFinding(p); });
+      }
       setResultsView("done");
       renderResults({ summary: { total_problems: allProblems.length, files_analyzed: Object.keys(projectFiles) }, test_results: [] });
     }
@@ -316,6 +319,12 @@
     }
 
     if (startBtn) startBtn.addEventListener("click", startAnalysis);
+    var pauseBtn = document.getElementById("pauseBtn");
+    var resumeBtn = document.getElementById("resumeBtn");
+    var cancelBtn = document.getElementById("cancelBtn");
+    if (pauseBtn) pauseBtn.addEventListener("click", pauseAnalysis);
+    if (resumeBtn) resumeBtn.addEventListener("click", resumeAnalysis);
+    if (cancelBtn) cancelBtn.addEventListener("click", cancelAnalysis);
     if (severityFilter) severityFilter.addEventListener("change", renderProblems);
     if (fileFilter) fileFilter.addEventListener("change", renderProblems);
     if (categoryFilter) categoryFilter.addEventListener("change", renderProblems);
@@ -560,37 +569,107 @@
     }
   }
 
+  var currentWorker = null;
+  var workerState = "IDLE";
+
+  function updateWorkerControls(state) {
+    workerState = state || "IDLE";
+    var wc = document.getElementById("workerControls");
+    var pauseB = document.getElementById("pauseBtn");
+    var resumeB = document.getElementById("resumeBtn");
+    var cancelB = document.getElementById("cancelBtn");
+    if (!wc) return;
+    if (state === "RUNNING" || state === "PAUSING" || state === "PAUSED" || state === "RESUMING") {
+      wc.hidden = false;
+      wc.style.display = "flex";
+      if (pauseB) pauseB.hidden = (state === "PAUSED" || state === "PAUSING");
+      if (resumeB) resumeB.hidden = !(state === "PAUSED" || state === "PAUSING");
+      if (cancelB) cancelB.hidden = false;
+    } else {
+      wc.hidden = true;
+      if (pauseB) pauseB.hidden = false;
+      if (resumeB) resumeB.hidden = true;
+    }
+  }
+
   function runAnalysisInWorker(files, language, category, level) {
     return new Promise(function (resolve, reject) {
       var worker;
       try {
         worker = new Worker("js/worker/analysis-worker.js");
+        currentWorker = worker;
       } catch (e) {
         reject(e);
         return;
       }
       var finished = false;
+      updateWorkerControls("RUNNING");
       worker.onmessage = function (ev) {
         var msg = ev.data || {};
         if (msg.type === "progress") {
           setStageProgress(msg.percent || 0, msg.stage, msg.detail || "");
+          if (msg.state) updateWorkerControls(msg.state);
+        } else if (msg.type === "state") {
+          updateWorkerControls(msg.state);
+          if (msg.state === "PAUSED") setStatus(ADi18n.t("statusPaused") || "Paused", "working");
         } else if (msg.type === "result") {
           finished = true;
+          updateWorkerControls("COMPLETED");
           try { worker.terminate(); } catch (e) {}
+          currentWorker = null;
           resolve(msg.result);
+        } else if (msg.type === "cancelled") {
+          finished = true;
+          updateWorkerControls("CANCELLED");
+          try { worker.terminate(); } catch (e) {}
+          currentWorker = null;
+          reject(new Error("ANALYSIS_CANCELLED"));
         } else if (msg.type === "error") {
           finished = true;
+          updateWorkerControls("FAILED");
           try { worker.terminate(); } catch (e) {}
+          currentWorker = null;
           reject(new Error(msg.message || "Worker error"));
         }
       };
       worker.onerror = function (err) {
         if (finished) return;
+        updateWorkerControls("FAILED");
         try { worker.terminate(); } catch (e) {}
+        currentWorker = null;
         reject(err && err.message ? err : new Error("Worker failed"));
       };
-      worker.postMessage({ type: "analyze", files: files, language: language, category: category, level: level });
+      var uiLang = (typeof ADi18n !== "undefined" && ADi18n.getLang) ? ADi18n.getLang() : (localStorage.getItem("ad_lang") || "en");
+      worker.postMessage({ type: "analyze", files: files, language: language, category: category, level: level, uiLang: uiLang });
     });
+  }
+
+  function pauseAnalysis() {
+    if (currentWorker && workerState === "RUNNING") {
+      currentWorker.postMessage({ type: "pause" });
+    }
+  }
+  function resumeAnalysis() {
+    if (currentWorker && (workerState === "PAUSED" || workerState === "PAUSING")) {
+      currentWorker.postMessage({ type: "resume" });
+    }
+  }
+  function cancelAnalysis() {
+    if (currentWorker) {
+      currentWorker.postMessage({ type: "cancel" });
+      // hard terminate after short grace
+      setTimeout(function () {
+        if (currentWorker) {
+          try { currentWorker.terminate(); } catch (e) {}
+          currentWorker = null;
+          updateWorkerControls("CANCELLED");
+          isAnalyzing = false;
+          if (startBtn) startBtn.disabled = !Object.keys(projectFiles).length;
+          setStatus(ADi18n.t("statusCancelled") || "Cancelled", "idle");
+          if (progressWrap) progressWrap.hidden = true;
+        }
+      }, 800);
+    }
   }
 
   function runAnalysisMain(files, language, category, level) {
@@ -690,19 +769,28 @@
       setStatus(ADi18n.t("statusDone") + " · " + allProblems.length + " · " + (result.strategies_count || 0) + " strat.", "idle");
     } catch (err) {
       clearInterval(tick);
-      console.error(err);
-      if (progressText) progressText.textContent = err.message;
-      setStatus(ADi18n.t("statusError"), "error");
-      setResultsView("error");
-      if (resultsEmpty) {
-        resultsEmpty.innerHTML =
-          '<div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div>' +
-          "<h3>" + ADUtils.escapeHtml(ADi18n.t("analysisFailed")) + "</h3>" +
-          "<p>" + ADUtils.escapeHtml(err.message) + "</p>";
+      var isCancel = err && (err.message === "ANALYSIS_CANCELLED" || String(err.message).indexOf("cancel") >= 0);
+      if (isCancel) {
+        setStatus(ADi18n.t("statusCancelled") || "Cancelled", "idle");
+        if (progressText) progressText.textContent = ADi18n.t("statusCancelled") || "Cancelled";
+        // Do not register incomplete results as final
+        setResultsView("empty");
+      } else {
+        console.error(err);
+        if (progressText) progressText.textContent = err.message;
+        setStatus(ADi18n.t("statusError"), "error");
+        setResultsView("error");
+        if (resultsEmpty) {
+          resultsEmpty.innerHTML =
+            '<div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div>' +
+            "<h3>" + ADUtils.escapeHtml(ADi18n.t("analysisFailed")) + "</h3>" +
+            "<p>" + ADUtils.escapeHtml(err.message) + "</p>";
+        }
       }
     } finally {
       isAnalyzing = false;
-      if (startBtn) startBtn.disabled = false;
+      updateWorkerControls("IDLE");
+      if (startBtn) startBtn.disabled = !Object.keys(projectFiles).length;
       setTimeout(function () {
         if (progressWrap) progressWrap.hidden = true;
       }, 800);
