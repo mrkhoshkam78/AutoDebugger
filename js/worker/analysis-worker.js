@@ -1,4 +1,4 @@
-/* Auto Debugger V6 Stage-2 — Analysis Web Worker */
+/* Auto Debugger V6 Stage-3 — Analysis Web Worker */
 /* global importScripts, ADUtils, ADProjectMapper, ADDebugEngine, ADAst, ADStrategies, ADCore, ADStage2, ADStage3, ADResultsStore, ADStandards */
 
 var BASE = self.location.href.replace(/[^/]+$/, "");
