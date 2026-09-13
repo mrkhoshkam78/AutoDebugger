@@ -55,9 +55,20 @@
     if (!this.astMap && globalThis.ADAst) {
       try { this.astMap = ADAst.analyzeProject(this.files); } catch (e) { this.astMap = null; }
     }
-    // V6: Build Code Model + Data-Flow
+    // V6 Stage-1: Code Model + Deep Data-Flow + CFG + Symbolic + Module Graph
     this.codeModel = null;
-    if (this.astMap && globalThis.ADAst && typeof ADAst.buildCodeModel === "function") {
+    this.moduleGraph = null;
+    this.cfgIssues = [];
+    this.symbolicFindings = [];
+    if (this.astMap && globalThis.ADCore && typeof ADCore.runStage1 === "function") {
+      try {
+        var s1 = ADCore.runStage1(this.files, this.astMap, { maxHops: 6 });
+        this.codeModel = s1.codeModel;
+        this.moduleGraph = s1.moduleGraph;
+        this.cfgIssues = s1.cfgIssues || [];
+        this.symbolicFindings = s1.symbolicFindings || [];
+      } catch (e) { this.codeModel = null; }
+    } else if (this.astMap && globalThis.ADAst && typeof ADAst.buildCodeModel === "function") {
       try { this.codeModel = ADAst.buildCodeModel(this.files, this.astMap); } catch (e) { this.codeModel = null; }
     }
 
@@ -78,6 +89,34 @@
       }
     }
 
+    // Stage-1: emit CFG / symbolic findings as candidates (gated by finalizeFinding)
+    this._emitStage1StructuralFindings();
+
+    // Stage-2: Test Gen / Mutation / Dependency / Regression / Root-Cause (orchestrated)
+    this.stage2 = null;
+    if (typeof ADStage2 !== "undefined" && ADStage2.runStage2) {
+      try {
+        var pk = (typeof ADResultsStore !== "undefined" && ADResultsStore.projectKeyFromFiles)
+          ? ADResultsStore.projectKeyFromFiles(this.files) : "default";
+        this.stage2 = ADStage2.runStage2(
+          { problems: this.problems },
+          this.files,
+          {
+            codeModel: this.codeModel,
+            moduleGraph: this.moduleGraph,
+            astMap: this.astMap,
+            cfgIssues: this.cfgIssues,
+            symbolicFindings: this.symbolicFindings,
+            projectKey: pk,
+            version: "V6-Stage2",
+            maxCandidates: 40
+          }
+        );
+        // Promote high-confidence dependency findings through same gate
+        this._emitStage2DependencyFindings();
+      } catch (e2) { this.stage2 = { error: String(e2 && e2.message || e2) }; }
+    }
+
     if (typeof ADStandards !== "undefined" && ADStandards.postValidateFindings) {
       this.problems = ADStandards.postValidateFindings(this.problems);
     }
@@ -86,12 +125,14 @@
 
     return {
       pipelineStages: [
-        "1:Project Understanding", "2:Context Mapping", "3:Strategy Selection",
-        "4:Static Analysis", "5:Evidence Correlation", "6:Root Cause",
-        "7:False Positive Reduction", "8:Finding Merge", "9:Confidence",
-        "10:Explanation", "11:Final Report"
+        "1:Project Understanding", "2:Structural Parsing", "3:Code Model",
+        "4:Strategy Selection", "5:Candidate Detection", "6:Data Flow",
+        "7:Control Flow", "8:Symbolic Check", "9:Cross-file Check",
+        "10:Validation", "11:Test Generation", "12:Mutation", "13:Dependency/API",
+        "14:Regression", "15:Root Cause Ranking", "16:Confidence", "17:Final Finding"
       ],
       problems: this.problems,
+      stage2: this.stage2 || null,
       skipped: this.skipped,
       strategies_run: this.strategiesRun,
       strategies_count: this.strategiesRun.length,
@@ -163,6 +204,181 @@
       related_categories: [(strategy && strategy.category) || this.category],
       test_level: this.level,
       simple: extras.simple || { id: (extras.simpleId || ruleId || "").toLowerCase().replace(/[^a-z0-9_]+/g, "_") }
+    });
+  };
+
+  /** Stage-2 dependency / API findings → candidates through finalizeFinding */
+  DebugEngine.prototype._emitStage2DependencyFindings = function () {
+    var self = this;
+    if (!this.stage2) return;
+    var strat = { id: "STAGE2-DEP", category: "Structure / Architecture", method: "stage2" };
+    function emit(sev, file, line, section, desc, why, expected, detected, rec, extras) {
+      self._add(sev, file, line, section, desc, why, expected, detected, rec, strat, extras || {});
+    }
+    (this.stage2.dependencyFindings || []).forEach(function (d) {
+      if (!d || (d.confidence || 0) < 0.5) return; // drop weak smells from auto-emit
+      if (d.kind === "unused_export") return; // code smell only — skip confirmed path
+      var conf = d.confidence || 0.6;
+      emit(
+        d.severity || "medium",
+        d.file || "project",
+        d.line || 1,
+        "dependency",
+        d.detail || d.kind,
+        "Module graph / symbol resolution signal",
+        "Resolved consistent imports/exports",
+        d.kind,
+        "Fix import path or export list",
+        {
+          confidence: conf,
+          status: conf >= 0.8 ? "LIKELY" : "POSSIBLE",
+          simpleId: "dep_" + (d.kind || "issue"),
+          evidence: [{ file: d.file || "", line: d.line || 1, type: "cross-file", snippet: d.detail || "", explanation: d.kind }],
+          root_cause: d.detail || d.kind,
+          symptom: d.kind,
+          impact: d.severity || "medium"
+        }
+      );
+    });
+    (this.stage2.apiFindings || []).forEach(function (a) {
+      if (!a || (a.confidence || 0) < 0.55) return;
+      emit(
+        a.severity || "low",
+        a.file || "project",
+        a.line || 1,
+        "api-contract",
+        a.detail || a.kind,
+        "Caller/callee shape inconsistency (static heuristic)",
+        "Matching parameter/return contracts",
+        a.kind,
+        "Align call sites with definitions",
+        {
+          confidence: a.confidence || 0.4,
+          status: "POSSIBLE",
+          simpleId: "api_" + (a.kind || "x"),
+          evidence: [{ file: a.file || "", line: a.line || 1, type: "ast", snippet: a.detail || "", explanation: "API contract heuristic" }],
+          root_cause: a.detail,
+          symptom: a.kind,
+          impact: "Possible runtime mismatch"
+        }
+      );
+    });
+  };
+
+  /** Stage-1 structural findings from CFG + limited symbolic execution */
+  DebugEngine.prototype._emitStage1StructuralFindings = function () {
+    var self = this;
+    var strat = { id: "STAGE1-CFG", category: "Code / Logic", method: "stage1" };
+    function emit(sev, file, line, section, desc, why, expected, detected, rec, extras) {
+      self._add(sev, file, line, section, desc, why, expected, detected, rec, strat, extras || {});
+    }
+    (this.cfgIssues || []).forEach(function (iss) {
+      if (!iss || !iss.type) return;
+      if (iss.type === "always_true" || iss.type === "always_false") {
+        emit("medium", iss.file, iss.line || 1, "control-flow",
+          iss.type === "always_true" ? "Always-true condition" : "Always-false / unreachable branch",
+          iss.explanation || "Condition has constant value",
+          "Use meaningful conditions or remove dead branch",
+          iss.cond || iss.explanation,
+          "Simplify control flow",
+          {
+            confidence: 0.78,
+            status: "LIKELY",
+            simpleId: "cfg_" + iss.type,
+            evidence: [{
+              file: iss.file, line: iss.line || 1, type: "controlflow",
+              snippet: iss.cond || "", explanation: iss.explanation,
+              controlPath: iss.controlPath || []
+            }],
+            root_cause: "Constant condition collapses branch reachability",
+            symptom: iss.explanation,
+            impact: "Dead code or misleading control flow"
+          });
+      } else if (iss.type === "unreachable") {
+        emit("medium", iss.file, iss.line || 1, "control-flow",
+          "Possibly unreachable code",
+          iss.explanation || "Code after return/throw",
+          "Remove or restructure control flow",
+          "stmt after exit",
+          "Delete dead code or fix control paths",
+          {
+            confidence: 0.7,
+            status: "LIKELY",
+            simpleId: "cfg_unreachable",
+            evidence: [{
+              file: iss.file, line: iss.line || 1, type: "controlflow",
+              snippet: "", explanation: iss.explanation,
+              controlPath: iss.controlPath || []
+            }],
+            root_cause: "Control flow exits before statement",
+            symptom: "Unreachable statement",
+            impact: "Dead code"
+          });
+      } else if (iss.type === "empty_catch") {
+        emit("medium", iss.file, iss.line || 1, "control-flow",
+          "Empty catch block",
+          "Errors are swallowed — missing error path",
+          "Handle or rethrow",
+          "catch { }",
+          "Log, recover, or rethrow",
+          {
+            confidence: 0.72,
+            status: "LIKELY",
+            simpleId: "cfg_empty_catch",
+            evidence: [{
+              file: iss.file, line: iss.line || 1, type: "controlflow",
+              snippet: "catch", explanation: iss.explanation,
+              controlPath: iss.controlPath || []
+            }],
+            root_cause: "Exception path discards error without handling",
+            symptom: "Empty catch",
+            impact: "Silent failures"
+          });
+      }
+    });
+    (this.symbolicFindings || []).forEach(function (f) {
+      if (!f || !f.type) return;
+      if (f.type === "null_deref") {
+        emit("high", f.file, f.line || 1, "logic",
+          "Possible null/undefined property access",
+          f.explanation || (f.symbol + " may be null"),
+          "Guard before property access",
+          f.symbol + " is " + f.value,
+          "Add null check before use",
+          {
+            confidence: 0.8,
+            status: "LIKELY",
+            simpleId: "sym_null_deref",
+            evidence: [{
+              file: f.file, line: f.line || 1, type: "symbolic",
+              snippet: f.symbol, explanation: f.explanation,
+              controlPath: f.controlPath || []
+            }],
+            root_cause: "Symbol " + f.symbol + " holds " + f.value + " and is used without a guard on this path",
+            symptom: "Property access on possibly null value",
+            impact: "Runtime TypeError"
+          });
+      } else if (f.type === "impossible_then") {
+        emit("medium", f.file, f.line || 1, "control-flow",
+          "Impossible conditional branch",
+          f.explanation || "Branch contradicts known value",
+          "Remove dead branch or fix assignment",
+          f.symbol + "=" + f.value,
+          "Align condition with actual values",
+          {
+            confidence: 0.82,
+            status: "LIKELY",
+            simpleId: "sym_impossible",
+            evidence: [{
+              file: f.file, line: f.line || 1, type: "symbolic",
+              snippet: f.symbol, explanation: f.explanation,
+              controlPath: f.controlPath || []
+            }],
+            root_cause: "Symbolic value " + f.symbol + "=" + f.value + " contradicts branch condition",
+            symptom: "Unreachable then-branch",
+            impact: "Dead code / logic error"
+          });
+      }
     });
   };
 
@@ -420,14 +636,31 @@ jsDotSpace: function (s) {
       secInnerHTML: function (s) {
         self._eachFile(["javascript", "typescript", "html"], function (fname, content) {
           if (typeof ADStandards !== "undefined" && ADStandards.shouldSkipSecurityKeywordScan(fname)) return;
-          if (!/innerHTML\s*=/i.test(content)) return;
+          var code = content
+            .replace(/\/\*[\s\S]*?\*\//g, "")
+            .replace(/\/\/[^\n]*/g, "")
+            .replace(/'(?:\\.|[^\\'])*'/g, "''")
+            .replace(/"(?:\\.|[^\\"])*"/g, '""')
+            .replace(/`(?:\\.|[^\\`])*`/g, "``");
+          if (!/innerHTML\s*=/i.test(code)) return;
           var flows = [];
           if (self.codeModel && globalThis.ADAst && ADAst.findFlowsForSink) {
             try { flows = ADAst.findFlowsForSink(self.codeModel, fname, "innerHTML", null) || []; } catch (e) {}
           }
+          // Prefer codeModel deep flows (Stage-1)
+          if (self.codeModel && self.codeModel.dataFlows) {
+            var deep = self.codeModel.dataFlows.filter(function (f) {
+              return f.file === fname && f.sink && f.sink.kind === "innerHTML" && !f.weak;
+            });
+            if (deep.length) flows = deep;
+          }
           var line = 1;
-          var idx = content.search(/innerHTML\s*=/);
-          if (idx >= 0) line = content.slice(0, idx).split("\n").length;
+          var idx = code.search(/innerHTML\s*=/);
+          if (idx >= 0) {
+            // map approx line via original
+            var oidx = content.search(/innerHTML\s*=/);
+            if (oidx >= 0) line = content.slice(0, oidx).split("\n").length;
+          }
           if (flows.length && !(flows[0].weak)) {
             var f0 = flows[0];
             var srcKind = (f0.source && f0.source.kind) || "user-input";
@@ -443,11 +676,12 @@ jsDotSpace: function (s) {
                 simpleId: "sec_innerhtml_flow",
                 evidence: [
                   { file: fname, line: (f0.source && f0.source.line) || line, type: "dataflow", snippet: (f0.source && f0.source.evidence) || srcKind, explanation: "Source: " + srcKind },
-                  { file: fname, line: line, type: "dataflow", snippet: "innerHTML =", explanation: "Sink: innerHTML" }
+                  { file: fname, line: line, type: "dataflow", snippet: "innerHTML =", explanation: "Sink: innerHTML", flowPath: f0.flowPath || [] }
                 ],
                 root_cause: "User/URL/storage/network data reaches innerHTML without sanitization",
                 symptom: "DOM XSS sink with proven source",
-                impact: "Cross-site scripting"
+                impact: "Cross-site scripting",
+                metadata: { flow: f0.flowPath || [] }
               });
           } else {
             self._add("high", fname, line, "security", "innerHTML assignment",
@@ -1009,24 +1243,35 @@ jsDotSpace: function (s) {
         });
       },
       cmbXssChain: function (s) {
-        // Combination: innerHTML + user-like source across project
-        var hasSource = false, hasSink = false, sinkFile = "project", sourceFile = "project";
-        Object.keys(self.files).forEach(function (n) {
-          if (typeof ADStandards !== "undefined" && (ADStandards.shouldSkipSecurityKeywordScan(n) || ADStandards.isVendorFile(n))) return;
-          if (((n.split(".").pop() || "").toLowerCase()) === "css") return;
-          var code = stripNoise(self.files[n]);
-          if (/(location\.hash|location\.search|\.value\b)/i.test(code)) { hasSource = true; sourceFile = n; }
-          if (/(innerHTML|outerHTML|insertAdjacentHTML)\s*=/i.test(code)) { hasSink = true; sinkFile = n; }
-        });
-        if (hasSource && hasSink) {
-          self._add("critical", sinkFile, 1, "security", "Cross-file input→HTML chain",
-            "User-influenced data patterns and HTML sinks exist in the project.",
-            "Ensure encoding between sources and sinks.",
-            "source in " + sourceFile + " / sink in " + sinkFile,
-            "Trace and sanitize the path.", s,
-            { confidence: 0.68, status: "LIKELY", simpleId: "sec_innerhtml",
-              evidence: "Source(" + sourceFile + ") → Sink(" + sinkFile + ") → XSS risk" });
+        // Stage-1: only report cross-file when module graph has a real edge + flow
+        var flows = (self.codeModel && self.codeModel.dataFlows) || [];
+        var xf = flows.filter(function (f) { return f.crossFile && !f.weak; });
+        if (xf.length) {
+          xf.forEach(function (f0) {
+            var srcKind = (f0.source && f0.source.kind) || "user-input";
+            var sinkKind = (f0.sink && f0.sink.kind) || "sink";
+            self._add("high", f0.file || f0.sourceFile || "project", (f0.sink && f0.sink.line) || 1, "security",
+              "Cross-file " + srcKind + " → " + sinkKind,
+              "Untrusted data propagates across modules into a dangerous sink.",
+              "Sanitize at module boundary or remove sink.",
+              "SOURCE(" + (f0.sourceFile || "") + ") → import/export → SINK(" + (f0.file || "") + ")",
+              "Trace dependency edge and sanitize.", s,
+              {
+                confidence: 0.78,
+                status: "LIKELY",
+                simpleId: "sec_xss_crossfile",
+                evidence: [
+                  { file: f0.sourceFile || "", line: (f0.source && f0.source.line) || 0, type: "dataflow", snippet: srcKind, explanation: "Source module" },
+                  { file: f0.file || "", line: (f0.sink && f0.sink.line) || 0, type: "cross-file", snippet: sinkKind, explanation: "Sink module via import edge", flowPath: f0.flowPath || [] }
+                ],
+                root_cause: "Real module dependency carries " + srcKind + " toward " + sinkKind + " without sanitization evidence",
+                symptom: "Cross-file source-to-sink path",
+                impact: "XSS / injection across modules"
+              });
+          });
+          return;
         }
+        // No real edge: do NOT invent cross-file bug from independent source+sink files
       },
       cmbSecretStorage: function (s) {
         var hasSecret = false, hasStore = false, f1 = "project", f2 = "project";

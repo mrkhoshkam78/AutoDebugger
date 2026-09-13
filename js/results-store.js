@@ -174,12 +174,44 @@
     }
   }
 
+  // Version-aware baselines for regression (meta store)
+  var baselineMemory = {};
+  async function saveBaseline(projectKey, baselineObj) {
+    baselineMemory[projectKey] = baselineObj;
+    try {
+      var db = await openDB();
+      return await new Promise(function (resolve) {
+        var tx = db.transaction(META, "readwrite");
+        tx.objectStore(META).put({ key: "baseline:" + projectKey, value: baselineObj, ts: Date.now() });
+        tx.oncomplete = function () { resolve(true); };
+        tx.onerror = function () { resolve(false); };
+      });
+    } catch (e) { return false; }
+  }
+  async function loadBaseline(projectKey) {
+    if (baselineMemory[projectKey]) return baselineMemory[projectKey];
+    try {
+      var db = await openDB();
+      return await new Promise(function (resolve) {
+        var tx = db.transaction(META, "readonly");
+        var req = tx.objectStore(META).get("baseline:" + projectKey);
+        req.onsuccess = function () {
+          var row = req.result;
+          resolve(row && row.value ? row.value : null);
+        };
+        req.onerror = function () { resolve(null); };
+      });
+    } catch (e) { return null; }
+  }
+
   global.ADResultsStore = {
     stableId: stableId,
     projectKeyFromFiles: projectKeyFromFiles,
     loadFindings: loadFindings,
     saveFindings: saveFindings,
     mergeFindings: mergeFindings,
-    clearProject: clearProject
+    clearProject: clearProject,
+    saveBaseline: saveBaseline,
+    loadBaseline: loadBaseline
   };
 })(typeof window !== "undefined" ? window : globalThis);

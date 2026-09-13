@@ -7,6 +7,21 @@ Open `index.html` in a browser, or deploy this folder to **GitHub Pages**.
 
 No server, no install, offline-first. Analysis runs in a **Web Worker**.
 
+## V6 Stage-2 focus
+- Automatic Test Generation (STATIC/SIMULATED scenarios — no fake runtime)
+- Test-driven validation statuses: SUPPORTED / INCONCLUSIVE / …
+- Mutation testing (virtual; kill/survive sensitivity)
+- Dependency + API contract analysis on Module Graph
+- Regression learning vs local baselines
+- Root-cause ranking (symptom ≠ recommendation)
+- Orchestrator: runs engines by candidate complexity
+
+## V6 Stage-1 focus
+- Deep Data Flow (assign / reassign / param / return / multi-hop, max ~6 hops)
+- CFG (if/else, loops, return, try/catch, unreachable, always-true/false)
+- Limited Symbolic Execution (null/undefined/true/false constants on paths)
+- Module Graph (import/export edges; cross-file flow only along real edges)
+
 ## V6 focus
 - Structural parsing + Code Model (symbols, imports/exports, calls, assignments)
 - Lightweight data-flow (source → sink, limited hops)

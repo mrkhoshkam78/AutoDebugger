@@ -7,7 +7,7 @@
   var STRINGS = {
     en: {
       appTitle: "Auto Debugger",
-      version: "V6 · Evidence-Driven",
+      version: "V6 · Stage-2",
       localBadge: "Local · Offline",
       statusReady: "Ready",
       statusReading: "Reading files…",
@@ -61,7 +61,7 @@
       langEn: "English",
       langFa: "فارسی",
       deleteFile: "Remove",
-      footerLeft: "V6 · Evidence-driven static analysis · No auto-fix",
+      footerLeft: "V6 Stage-2 · Tests · Mutation · Regression · No auto-fix",
       footerRight: "Offline · Safe · No auto-fix",
       level1Desc: "Quick syntax & structure. Context-aware.",
       level2Desc: "Relations, UI/UX depth. Fewer false positives.",
@@ -227,7 +227,7 @@
     },
     fa: {
       appTitle: "دیباگر خودکار",
-      version: "V6 · مبتنی بر شواهد",
+      version: "V6 · مرحله ۲",
       localBadge: "محلی · آفلاین",
       statusReady: "آماده",
       statusReading: "در حال خواندن فایل‌ها…",
@@ -281,7 +281,7 @@
       langEn: "English",
       langFa: "فارسی",
       deleteFile: "حذف",
-      footerLeft: "V6 · تحلیل ایستا مبتنی بر شواهد · بدون اصلاح خودکار",
+      footerLeft: "V6 مرحله ۲ · تست · جهش · رگرسیون · بدون اصلاح خودکار",
       footerRight: "آفلاین · امن · بدون اصلاح خودکار",
       level1Desc: "بررسی سریع نحو و ساختار با درک زمینه.",
       level2Desc: "روابط و عمق UI/UX با خطای مثبت کمتر.",
