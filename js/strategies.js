@@ -100,13 +100,34 @@
     { id: "ARCH-DEEP-PATH", name: "Deep folder paths", category: "Structure / Architecture", langs: ["*"], requires: {}, levels: [4], priority: 7, cost: 1, method: "deepPath", description: "Path depth >6" },
     { id: "ARCH-MIXED", name: "Mixed language density", category: "Structure / Architecture", langs: ["*"], requires: {}, levels: [4], priority: 6, cost: 1, method: "mixedLang", description: "≥4 languages" },
     { id: "ARCH-HARD-URL", name: "Localhost URLs", category: "Structure / Architecture", langs: ["*"], requires: {}, levels: [4], priority: 6, cost: 1, method: "crHardUrl", description: "localhost in source" },
+
+    // ── Mathematical / Calculations ──
+    { id: "MATH-DIVZERO", name: "Division by zero", category: "Mathematical / Calculations", langs: ["javascript","typescript","python"], requires: {}, levels: [1,2,3,4], priority: 1, cost: 1, method: "mathDivZero", description: "Literal or variable / 0" },
+    { id: "MATH-NAN", name: "NaN / Infinity risk", category: "Mathematical / Calculations", langs: ["javascript","typescript"], requires: {}, levels: [1,2,3,4], priority: 2, cost: 1, method: "mathNanInf", description: "0/0, Infinity, NaN patterns" },
+    { id: "MATH-PARSE", name: "Unsafe parseInt/parseFloat", category: "Mathematical / Calculations", langs: ["javascript","typescript"], requires: {}, levels: [2,3,4], priority: 2, cost: 1, method: "mathParse", description: "parse without radix / NaN check" },
+    { id: "MATH-PERCENT", name: "Percentage formula", category: "Mathematical / Calculations", langs: ["javascript","typescript"], requires: {}, levels: [2,3,4], priority: 3, cost: 2, method: "mathPercent", description: "x/100 vs x*100 confusions" },
+    { id: "MATH-ROUND", name: "Rounding / precision", category: "Mathematical / Calculations", langs: ["javascript","typescript"], requires: {}, levels: [2,3,4], priority: 3, cost: 1, method: "mathRound", description: "toFixed misuse / float compare" },
+    { id: "MATH-CHAIN", name: "Formula chain risk", category: "Mathematical / Calculations", langs: ["javascript","typescript"], requires: {}, levels: [3,4], priority: 3, cost: 3, method: "mathChain", description: "Multi-step numeric assign without guards" },
+    { id: "MATH-INDEP", name: "Independent arithmetic check", category: "Mathematical / Calculations", langs: ["javascript","typescript"], requires: {}, levels: [2,3,4], priority: 2, cost: 2, method: "mathIndepCheck", description: "Pure arithmetic vs independent calc" },
+    { id: "MATH-NEGZERO", name: "Boundary numeric values", category: "Mathematical / Calculations", langs: ["javascript","typescript","python"], requires: {}, levels: [3,4], priority: 4, cost: 1, method: "mathBoundary", description: "ops with 0/-1 without checks" },
+
+    // ── Database / Storage ──
+    { id: "STOR-LS-KEY", name: "localStorage key mismatch", category: "Database / Storage", langs: ["javascript","typescript"], requires: {}, levels: [1,2,3,4], priority: 1, cost: 2, method: "storKeyMismatch", description: "setItem/getItem different keys" },
+    { id: "STOR-JSON", name: "JSON parse without try", category: "Database / Storage", langs: ["javascript","typescript"], requires: {}, levels: [1,2,3,4], priority: 1, cost: 1, method: "storJsonParse", description: "JSON.parse storage value unguarded" },
+    { id: "STOR-SS", name: "sessionStorage usage", category: "Database / Storage", langs: ["javascript","typescript"], requires: {}, levels: [2,3,4], priority: 3, cost: 1, method: "storSession", description: "session vs local scope signals" },
+    { id: "STOR-IDB", name: "IndexedDB patterns", category: "Database / Storage", langs: ["javascript","typescript"], requires: {}, levels: [2,3,4], priority: 2, cost: 2, method: "storIdb", description: "IDB open/transaction error handling" },
+    { id: "STOR-WRITE-ONLY", name: "Write without read path", category: "Database / Storage", langs: ["javascript","typescript"], requires: {}, levels: [3,4], priority: 3, cost: 2, method: "storWriteOnly", description: "setItem without getItem in project" },
+    { id: "STOR-SQL", name: "SQL string concat", category: "Database / Storage", langs: ["javascript","typescript","python","php"], requires: {}, levels: [2,3,4], priority: 1, cost: 2, method: "storSqlConcat", description: "Query built with user input" },
+    { id: "STOR-STALE", name: "Stale state after storage", category: "Database / Storage", langs: ["javascript","typescript"], requires: {}, levels: [3,4], priority: 4, cost: 2, method: "storStale", description: "UI state not synced after storage read" },
+
     { id: "CMB-GENERIC", name: "Entry + maintainability combo", category: "Code / Logic", langs: ["*"], requires: {}, levels: [4], priority: 4, cost: 3, method: "cmbGeneric", description: "Combined structure signals" }
   ];
 
   var LEVEL_CAPS = { 1: 5, 2: 15, 3: 35, 4: 80 };
   var ALL_CATEGORIES = [
     "Code / Logic", "UI", "UX", "Performance", "Syntax",
-    "Security", "Responsive behavior", "Structure / Architecture"
+    "Security", "Responsive behavior", "Structure / Architecture",
+    "Mathematical / Calculations", "Database / Storage"
   ];
 
   function contextOk(requires, ctx) {
@@ -140,7 +161,11 @@
       "responsive": "Responsive behavior", "responsive behavior": "Responsive behavior",
       "structure": "Structure / Architecture", "architecture": "Structure / Architecture",
       "structure / architecture": "Structure / Architecture",
-      "test all": "Test All", "testall": "Test All"
+      "test all": "Test All", "testall": "Test All",
+      "mathematical": "Mathematical / Calculations", "math": "Mathematical / Calculations",
+      "mathematical / calculations": "Mathematical / Calculations",
+      "database": "Database / Storage", "storage": "Database / Storage",
+      "database / storage": "Database / Storage"
     };
     var k = String(cat).trim();
     if (ALL_CATEGORIES.indexOf(k) !== -1) return k;

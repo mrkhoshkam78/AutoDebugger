@@ -32,6 +32,11 @@
   function isVendorFile(fname) {
     return /\.min\.js$/i.test(fname) || /(?:^|\/)jszip/i.test(fname) || /node_modules\//i.test(fname);
   }
+  function isFixtureFile(fname) {
+    return /(?:^|\/)(?:__tests__|fixtures?|mocks?|testdata)\//i.test(fname)
+      || /\.test\.(js|ts|jsx|tsx)$/i.test(fname)
+      || /\.spec\.(js|ts)$/i.test(fname);
+  }
 
   function isToolSourceFile(fname) {
     var base = String(fname || "").split("/").pop() || "";
@@ -224,6 +229,11 @@
     if (isVendorFile(file)) {
       validations.push({ type: "context", pass: false, detail: "Vendor/minified file skipped" });
       return { pass: false, doNotReport: true, notApplicable: false, validations: validations, contradictions: contradictions, scoreMods: scoreMods };
+    }
+    if (isFixtureFile(file) && candidate.flags && candidate.flags.securityKeyword) {
+      validations.push({ type: "context", pass: false, detail: "Security pattern in test/fixture file" });
+      scoreMods.push("heuristicOnly");
+      // do not fully suppress all fixture issues, but cap confidence path
     }
 
     // Security keyword rules on tool sources are FP
@@ -493,6 +503,7 @@
     CONFIDENCE_WEIGHTS: CONFIDENCE_WEIGHTS,
     CONFIDENCE_THRESHOLDS: CONFIDENCE_THRESHOLDS,
     isVendorFile: isVendorFile,
+    isFixtureFile: isFixtureFile,
     isToolSourceFile: isToolSourceFile,
     isValidDomId: isValidDomId,
     stripNoise: stripNoise,

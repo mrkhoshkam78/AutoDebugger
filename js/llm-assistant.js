@@ -198,6 +198,17 @@
       return { text: lines.join("\n"), intent: intent, source: "local" };
     }
 
+    if (intent.intent === "explain_finding" || intent.intent === "explain_why") {
+      var tool = runInternalTool("inspect_finding", {}, { findings: findings });
+      if (tool.ok) {
+        var d = tool.data;
+        lines.push("Tool: inspect_finding");
+        lines.push(JSON.stringify(d, null, 0));
+        lines.push("\nتوضیح Evidence-based — LLM Finding جدید نمی‌سازد.");
+        return { text: lines.join("\n"), intent: intent, source: "local+tool" };
+      }
+    }
+
     // generic help
     lines.push("دستیار تحلیل Auto Debugger (حالت محلی — Provider تنظیم نشده یا پاسخ محلی).");
     lines.push("می‌توانید بپرسید: خلاصه نتایج، مهم‌ترین مشکل، چرا این خطا، فقط امنیت.");
@@ -269,6 +280,56 @@
     }
   }
 
+
+  function runInternalTool(name, args, appState) {
+    args = args || {};
+    appState = appState || {};
+    var findings = appState.findings || [];
+    if (name === "inspect_finding") {
+      var id = args.id || args.index;
+      var f = null;
+      if (typeof id === "number") f = findings[id - 1] || findings[id];
+      else f = findings.filter(function (x) { return (x.problem_id || x.id) === id; })[0] || findings[0];
+      if (!f) return { ok: false, error: "No finding in context" };
+      return {
+        ok: true,
+        tool: name,
+        data: {
+          id: f.problem_id || f.id,
+          severity: f.severity,
+          confidence: f.confidence,
+          status: f.status,
+          classification: f.classification,
+          file: f.file_name || f.file,
+          line: f.line,
+          symptom: f.symptom || f.description,
+          rootCause: f.root_cause || f.rootCause,
+          evidence: f.evidence,
+          category: f.category
+        }
+      };
+    }
+    if (name === "list_findings") {
+      return {
+        ok: true,
+        tool: name,
+        data: findings.slice(0, 15).map(function (f, i) {
+          return { i: i + 1, severity: f.severity, conf: f.confidence, file: f.file_name, line: f.line, title: (f.description || "").slice(0, 80) };
+        })
+      };
+    }
+    if (name === "suggest_category") {
+      var m = (args.question || "").toLowerCase();
+      var cat = "Test All";
+      if (/security|xss|inject|امنیت/.test(m)) cat = "Security";
+      else if (/math|calc|formula|محاسب/.test(m)) cat = "Mathematical / Calculations";
+      else if (/storage|database|localStorage|ذخیره/.test(m)) cat = "Database / Storage";
+      else if (/\bui\b|ux|رابط/.test(m)) cat = "UI";
+      return { ok: true, tool: name, data: { category: cat, note: "Re-run analysis with this category; LLM does not invent findings." } };
+    }
+    return { ok: false, error: "Unknown tool: " + name };
+  }
+
   async function chat(message, appState) {
     var context = buildContext(appState);
     var history = loadHistory(context.projectKey);
@@ -295,6 +356,7 @@
     detectIntent: detectIntent,
     chat: chat,
     localRespond: localRespond,
+    runInternalTool: runInternalTool,
     loadHistory: loadHistory,
     clearHistory: clearHistory,
     getConfig: function () { return { provider: config.provider, endpoint: config.endpoint, model: config.model, hasKey: !!config.apiKey }; }

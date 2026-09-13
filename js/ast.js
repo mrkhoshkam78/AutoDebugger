@@ -181,6 +181,46 @@
     var sinks = extractSinks(code, content);
     var control = extractControlSignals(code, content);
 
+    // Storage & DOM operations (structural index)
+    var storageOps = [];
+    var domOps = [];
+    var asyncOps = [];
+    var params = [];
+    var returns = [];
+    var reStor = /(?:localStorage|sessionStorage)\.(getItem|setItem|removeItem)\s*\(\s*['"]([^'"]*)['"]?/g;
+    var m;
+    while ((m = reStor.exec(content))) {
+      storageOps.push({ op: m[1], key: m[2] || "", line: lineOf(content, m.index) });
+    }
+    if (/indexedDB\.open/.test(content)) {
+      storageOps.push({ op: "idb_open", key: "", line: 1 });
+    }
+    var reDom = /\b(getElementById|querySelector|querySelectorAll|getElementsByClassName|createElement|appendChild|removeChild|insertAdjacentHTML)\s*\(/g;
+    while ((m = reDom.exec(code))) {
+      domOps.push({ op: m[1], line: lineOf(content, m.index) });
+    }
+    var reDomAssign = /\.(innerHTML|outerHTML|textContent)\s*=/g;
+    while ((m = reDomAssign.exec(code))) {
+      domOps.push({ op: m[1] + "=", line: lineOf(content, m.index) });
+    }
+    var reAsync = /\b(async\s+function|await\s+|Promise\.|\.then\s*\(|\.catch\s*\(|fetch\s*\()/g;
+    while ((m = reAsync.exec(code))) {
+      asyncOps.push({ kind: (m[1] || "").trim().slice(0, 20), line: lineOf(content, m.index) });
+    }
+    var reRet = /\breturn\s+([^;\n]+)/g;
+    while ((m = reRet.exec(code))) {
+      returns.push({ value: (m[1] || "").trim().slice(0, 80), line: lineOf(content, m.index) });
+    }
+    // function params (approx)
+    var reParam = /function\s+[A-Za-z_$][\w$]*\s*\(([^)]*)\)|([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(([^)]*)\)\s*=>/g;
+    while ((m = reParam.exec(code))) {
+      var plist = (m[1] || m[3] || "").split(",").map(function (x) { return x.trim(); }).filter(Boolean);
+      var fname = m[2] || "";
+      plist.forEach(function (pr) {
+        params.push({ name: pr.replace(/=.*/, "").trim(), fn: fname, line: lineOf(content, m.index) });
+      });
+    }
+
     var result = {
       file: fileName || "",
       functions: functions,
@@ -191,6 +231,11 @@
       sources: sources,
       sinks: sinks,
       control: control,
+      storageOps: storageOps,
+      domOps: domOps,
+      asyncOps: asyncOps,
+      returns: returns,
+      params: params,
       hasEval: sinks.some(function (s) { return s.kind === "eval"; }),
       hasInnerHTML: sinks.some(function (s) { return s.kind === "innerHTML"; }),
       hasOuterHTML: sinks.some(function (s) { return s.kind === "outerHTML"; }),
@@ -201,10 +246,21 @@
     };
 
     functions.forEach(function (f) {
-      result.symbols[f.name] = { kind: "function", line: f.line };
+      result.symbols[f.name] = { kind: "function", line: f.line, refs: [] };
     });
     assignments.forEach(function (a) {
-      if (!result.symbols[a.target]) result.symbols[a.target] = { kind: "variable", line: a.line };
+      if (!result.symbols[a.target]) result.symbols[a.target] = { kind: "variable", line: a.line, refs: [] };
+      else if (!result.symbols[a.target].refs) result.symbols[a.target].refs = [];
+    });
+    params.forEach(function (pr) {
+      if (!result.symbols[pr.name]) result.symbols[pr.name] = { kind: "parameter", line: pr.line, fn: pr.fn, refs: [] };
+    });
+    calls.forEach(function (c) {
+      var base = (c.name || "").split(".")[0];
+      if (result.symbols[base]) {
+        result.symbols[base].refs = result.symbols[base].refs || [];
+        result.symbols[base].refs.push({ kind: "call", line: c.line });
+      }
     });
 
     return result;
@@ -424,6 +480,12 @@
   }
 
   function analyzeProject(files) {
+    if (global.ADCache && typeof ADCache.analyzeProjectCached === "function") {
+      var cached = ADCache.analyzeProjectCached(files, analyzeJS);
+      cached.map.__cacheStats = cached.stats;
+      cached.map.__projectKey = cached.projectKey;
+      return cached.map;
+    }
     var map = {};
     var names = Object.keys(files || {});
     for (var i = 0; i < names.length; i++) {
