@@ -1,5 +1,5 @@
 /**
- * Auto Debugger V9.0 — Evidence-driven (Candidate → finalizeFinding)
+ * Auto Debugger V10.0 — Evidence-driven (Candidate → finalizeFinding)
  */
 (function (global) {
   "use strict";
@@ -142,7 +142,7 @@
     if (!this.astMap && globalThis.ADAst) {
       try { this.astMap = ADAst.analyzeProject(this.files); } catch (e) { this.astMap = null; }
     }
-    // V9 Stage-1: Code Model + Deep Data-Flow + CFG + Symbolic + Module Graph
+    // V10 Stage-1: Code Model + Deep Data-Flow + CFG + Symbolic + Module Graph
     this.codeModel = null;
     this.moduleGraph = null;
     this.cfgIssues = [];
@@ -171,7 +171,7 @@
     var executedEngines = {};
     for (var i = 0; i < (sel.selected || []).length; i++) {
       var s = sel.selected[i];
-      // V9 Engine Isolation: skip strategy if its specialized engine is not in Supervisor plan
+      // V10 Engine Isolation: skip strategy if its specialized engine is not in Supervisor plan
       if (this.supervisorPlan && typeof ADSupervisor !== "undefined" && ADSupervisor.strategyToEngine) {
         var engId = ADSupervisor.strategyToEngine(s);
         if (engId && !ADSupervisor.isEngineAllowed(engId, this.supervisorPlan)) {
@@ -205,7 +205,7 @@
             cfgIssues: this.cfgIssues,
             symbolicFindings: this.symbolicFindings,
             projectKey: pk,
-            version: "V9-Stage2",
+            version: "V10-Stage2",
             maxCandidates: 40
           }
         );
@@ -229,7 +229,7 @@
           stage2: this.stage2 || {},
           astMap: this.astMap,
           gitMeta: this.gitMeta || null,
-          options: { version: "V9-Stage3" }
+          options: { version: "V10-Stage3" }
         });
         if (this.stage3 && this.stage3.problems) {
           this.problems = this.stage3.problems;
@@ -290,7 +290,7 @@
       supervisor: this.supervisorPlan || null,
       test_results: this.testResults,
       context: { fileCount: this.ctx.fileCount, languages: this.ctx.languages, has: this.ctx.has },
-      version: "V9.0",
+      version: "V10.0",
       summary: {
         total_problems: this.problems.length,
         by_severity: this._countSeverity(),
@@ -346,7 +346,7 @@
 
   DebugEngine.prototype._add = function (severity, file, line, section, description, why, expected, detected, recommendation, strategy, extras) {
     extras = extras || {};
-    // V9.0: Rule → Candidate → finalizeFinding (Evidence + Context + Validation + Confidence)
+    // V10.0: Rule → Candidate → finalizeFinding (Evidence + Context + Validation + Confidence)
     if (typeof ADStandards !== "undefined" && ADStandards.finalizeFinding && ADStandards.createCandidateFromAdd) {
       var candidate = ADStandards.createCandidateFromAdd(
         severity, file, line, section, description, why, expected, detected, recommendation, strategy, extras, this.ctx
