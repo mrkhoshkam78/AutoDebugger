@@ -679,9 +679,9 @@ a:hover { text-decoration: underline; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
 /* Sidebar overlay class from nav-shell */
-.sidebar-overlay.show { display: block !important; }
-.sidebar-overlay[hidden] { display: none !important; }
-.sidebar-overlay.show[hidden] { display: block !important; }
+.sidebar-overlay.show:not([hidden]) { display: block !important; }
+.sidebar-overlay[hidden] { display: none !important; pointer-events: none !important; }
+.sidebar-overlay:not(.show):not(.open) { display: none !important; pointer-events: none !important; }
 
 /* Empty state polish */
 .results-empty {
@@ -868,3 +868,22 @@ html, body {
 .illust svg { width: 72px; height: 72px; }
 .upload-zone .illust svg { width: 56px; height: 56px; color: var(--accent); }
 .results-empty .illust svg { width: 88px; height: 88px; opacity: 0.85; }
+
+.settings-overlay:not(.open) { display: none !important; pointer-events: none !important; }
+.settings-overlay.open { pointer-events: auto; }
+button, .btn, select, input, .upload-zone, .nav-item {
+  position: relative;
+  z-index: 1;
+}
+.illust img, .hero-art img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  user-select: none;
+  pointer-events: none;
+}
+html[data-theme="clearspace"] .hero-art img,
+html[data-theme="light"] .hero-art img {
+  filter: none;
+}

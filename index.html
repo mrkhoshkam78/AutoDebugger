@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="description" content="Auto Debugger V10.2 — browser-only static analysis" />
-  <title>Auto Debugger V10.2</title>
+  <meta name="description" content="Auto Debugger V11.0 — browser-only static analysis" />
+  <title>Auto Debugger V11.0</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -35,7 +35,7 @@
       </a>
     </nav>
     <div style="padding:8px 4px;font-size:11px;color:var(--text-faint)">
-      <span class="version" data-i18n="version">V10.2.0</span>
+      <span class="version" data-i18n="version">V11.0.0</span>
     </div>
   </aside>
 
@@ -68,32 +68,7 @@
             <button type="button" class="btn btn-primary" id="browseBtn" data-i18n="uploadBtn">Choose project files</button>
           </div>
         </div>
-        <div class="hero-art" aria-hidden="true">
-          <svg viewBox="0 0 320 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="waveGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#6366f1"/><stop offset="100%" stop-color="#22d3ee"/>
-              </linearGradient>
-              <linearGradient id="screenG" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#1e293b"/><stop offset="100%" stop-color="#0f172a"/>
-              </linearGradient>
-            </defs>
-            <rect x="48" y="36" width="180" height="120" rx="10" fill="url(#screenG)" stroke="url(#waveGrad)" stroke-width="1.5"/>
-            <rect x="56" y="48" width="164" height="8" rx="2" fill="#334155"/>
-            <rect x="56" y="64" width="90" height="6" rx="2" fill="#6366f1" opacity="0.8"/>
-            <rect x="56" y="78" width="120" height="6" rx="2" fill="#22d3ee" opacity="0.5"/>
-            <rect x="56" y="92" width="70" height="6" rx="2" fill="#8b5cf6" opacity="0.6"/>
-            <rect x="56" y="106" width="100" height="6" rx="2" fill="#334155"/>
-            <rect x="56" y="120" width="55" height="6" rx="2" fill="#475569"/>
-            <rect x="90" y="156" width="96" height="8" rx="2" fill="#1e293b"/>
-            <ellipse cx="138" cy="172" rx="70" ry="6" fill="#000" opacity="0.25"/>
-            <circle cx="250" cy="70" r="28" stroke="url(#waveGrad)" stroke-width="3" fill="none"/>
-            <line x1="270" y1="90" x2="292" y2="112" stroke="url(#waveGrad)" stroke-width="3" stroke-linecap="round"/>
-            <text x="230" y="50" fill="#8b5cf6" font-size="14" font-family="monospace">{ }</text>
-            <text x="200" y="130" fill="#22d3ee" font-size="12" font-family="monospace">&lt;/&gt;</text>
-            <text x="260" y="140" fill="#6366f1" font-size="11" font-family="monospace">fn()</text>
-          </svg>
-        </div>
+        <div class="hero-art" aria-hidden="true"><img src="media/illustrations/hero-analyze.svg" alt="" width="280" height="175" decoding="async" /></div>
       </section>
 
       <!-- Upload -->
@@ -104,12 +79,7 @@
         </h2>
         <div class="upload-zone" id="uploadZone" role="button" tabindex="0" aria-label="Upload zone">
           <div class="illust upload-icon" aria-hidden="true">
-            <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="14" y="22" width="52" height="40" rx="8" stroke="currentColor" stroke-width="2" opacity="0.35"/>
-              <path d="M28 38h24M28 46h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
-              <circle cx="56" cy="28" r="14" fill="var(--accent-soft, #eef2ff)" stroke="currentColor" stroke-width="2"/>
-              <path d="M56 22v12M50 28h12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-            </svg>
+            <img src="media/illustrations/upload.svg" alt="" width="72" height="72" decoding="async" />
           </div>
           <h3 data-i18n="dropTitle">Drop project here</h3>
           <p data-i18n="dropSub">.js · .ts · .py · .html · .css · .json · .php · .zip</p>
@@ -122,15 +92,7 @@
       </section>
 
       <!-- Config -->
-      <section class="panel" aria-labelledby="configTitle">
-        <div class="illust" aria-hidden="true" style="margin-bottom:4px">
-          <svg viewBox="0 0 64 40" width="64" height="40" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="4" y="10" width="56" height="20" rx="6" stroke="currentColor" stroke-width="1.6" opacity="0.25"/>
-            <circle cx="18" cy="20" r="5" fill="currentColor" opacity="0.35"/>
-            <circle cx="32" cy="20" r="5" fill="currentColor" opacity="0.2"/>
-            <circle cx="46" cy="20" r="5" fill="currentColor" opacity="0.15"/>
-          </svg>
-        </div>
+      <section class="panel" aria-labelledby="configTitle"><div class="illust" aria-hidden="true"><img src="media/illustrations/debug.svg" alt="" width="64" height="64" decoding="async" /></div>
         <h2 class="panel-title" id="configTitle" data-i18n="configTitle">Analysis configuration</h2>
         <div class="config-grid">
           <div class="field">
@@ -195,18 +157,7 @@
       </section>
 
       <!-- Results: empty state is SIBLING (not child) so hide logic works -->
-      <div class="results-empty panel" id="resultsEmpty">
-        <div class="illust" aria-hidden="true">
-          <svg viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="18" y="16" width="70" height="52" rx="8" stroke="currentColor" stroke-width="2" opacity="0.35"/>
-            <rect x="26" y="28" width="36" height="4" rx="2" fill="currentColor" opacity="0.2"/>
-            <rect x="26" y="38" width="48" height="4" rx="2" fill="currentColor" opacity="0.15"/>
-            <rect x="26" y="48" width="28" height="4" rx="2" fill="currentColor" opacity="0.12"/>
-            <circle cx="88" cy="62" r="18" stroke="currentColor" stroke-width="2.2" opacity="0.45"/>
-            <path d="M100 74l12 12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.45"/>
-            <path d="M82 62h12M88 56v12" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.35"/>
-          </svg>
-        </div>
+      <div class="results-empty panel" id="resultsEmpty"><div class="illust" aria-hidden="true"><img src="media/illustrations/empty-search.svg" alt="" width="120" height="100" decoding="async" /></div>
         <p data-i18n="resultsEmpty">Upload a project and run analysis to see findings here.</p>
       </div>
 
@@ -247,7 +198,7 @@
     </main>
 
     <footer class="footer">
-      <span data-i18n="footerLeft">V10.2.0 · Supervisor · Specialized Engines · Offline · No auto-fix</span>
+      <span data-i18n="footerLeft">V11.0.0 · Supervisor · Specialized Engines · Offline · No auto-fix</span>
       <span data-i18n="footerRight">Offline · IndexedDB · Safe</span>
     </footer>
   </div>

@@ -118,6 +118,7 @@
   }
 
   function localizeSelectOptions() {
+    if (typeof ADi18n === "undefined") return;
     var fa = ADi18n.getLang() === "fa";
     var catMap = {
       "Test All": fa ? "همه دسته‌ها" : "Test All",
@@ -129,12 +130,14 @@
       "Storage / Database": fa ? "ذخیره / دیتابیس" : "Storage / Database",
       "Syntax": fa ? "نحو" : "Syntax"
     };
-    if (categorySelect) {
-      Array.prototype.forEach.call(categorySelect.options, function (o) {
+    var catEl = document.getElementById("categorySelect");
+    if (catEl && catEl.options) {
+      Array.prototype.forEach.call(catEl.options, function (o) {
         if (catMap[o.value]) o.textContent = catMap[o.value];
       });
     }
-    if (languageSelect) {
+    var langEl = document.getElementById("languageSelect");
+    if (langEl && langEl.options) {
       var langMap = {
         auto: fa ? "خودکار" : "Auto",
         javascript: "JavaScript",
@@ -145,15 +148,16 @@
         php: "PHP",
         java: "Java"
       };
-      Array.prototype.forEach.call(languageSelect.options, function (o) {
+      Array.prototype.forEach.call(langEl.options, function (o) {
         if (langMap[o.value]) o.textContent = langMap[o.value];
       });
     }
-    if (levelSelect) {
+    var levelEl = document.getElementById("levelSelect");
+    if (levelEl && levelEl.tagName === "SELECT" && levelEl.options) {
       var levels = fa
         ? ["1 — سریع", "2 — کامل", "3 — تخصصی", "4 — عمیق"]
         : ["1 — Quick", "2 — Full", "3 — Specialized", "4 — Deep"];
-      Array.prototype.forEach.call(levelSelect.options, function (o, i) {
+      Array.prototype.forEach.call(levelEl.options, function (o, i) {
         if (levels[i]) o.textContent = levels[i];
       });
     }
@@ -161,7 +165,6 @@
       var labels = fa ? ["سریع", "کامل", "تخصصی", "عمیق"] : ["Quick", "Full", "Specialized", "Deep"];
       if (labels[i]) pill.textContent = labels[i];
     });
-    // Theme switch labels
     var td = document.getElementById("themeDarkBtn");
     var tl = document.getElementById("themeLightBtn");
     if (td) td.textContent = fa ? "تاریک" : "Midnight";
@@ -321,22 +324,33 @@
     if (def < "1" || def > "4") def = "1";
     var hv = document.getElementById("levelValue");
     if (hv) hv.value = def;
+    // Keep levelSelect pointing at the real <select>, never the hidden input
+    var sel = document.getElementById("levelSelect");
+    if (sel && sel.tagName === "SELECT") {
+      levelSelect = sel;
+      sel.value = def;
+    }
     var levelOpts = document.querySelectorAll(".level-opt");
     for (var i = 0; i < levelOpts.length; i++) {
       var on = levelOpts[i].getAttribute("data-level") === def;
       levelOpts[i].classList.toggle("active", on);
       levelOpts[i].setAttribute("aria-pressed", on ? "true" : "false");
     }
-    levelSelect = hv;
     updateLevelDesc();
   }
 
   function init() {
+    try {
     cacheDom();
-    ADi18n.loadLang();
+    if (typeof ADi18n !== "undefined") {
+      ADi18n.loadLang();
+    }
     loadTheme();
-    applyLanguage(ADi18n.getLang());
-    applyDefaultLevelFromSettings();
+    try { applyLanguage(ADi18n.getLang()); } catch (eLang) { console.warn("i18n", eLang); }
+    try { applyDefaultLevelFromSettings(); } catch (eLv) { console.warn("level", eLv); }
+    // Restore select reference if something corrupted it
+    var realLevel = document.getElementById("levelSelect");
+    if (realLevel && realLevel.tagName === "SELECT") levelSelect = realLevel;
 
     var levelOpts = document.querySelectorAll(".level-opt");
     for (var li = 0; li < levelOpts.length; li++) {
@@ -348,7 +362,11 @@
         }
         var hv = document.getElementById("levelValue");
         if (hv) hv.value = lv;
-        levelSelect = hv;
+        var sel = document.getElementById("levelSelect");
+        if (sel && sel.tagName === "SELECT") {
+          levelSelect = sel;
+          sel.value = lv;
+        }
         try { localStorage.setItem("ad_default_level", String(lv)); } catch (eLv) {}
         updateLevelDesc();
       });
@@ -506,10 +524,15 @@
     });
 
     try {
-      ADKnowledge.getStats().then(function (s) {
-        if (s.totalPatterns > 0) console.info("Knowledge DB:", s.totalPatterns);
-      }).catch(function () {});
+      if (typeof ADKnowledge !== "undefined" && ADKnowledge.getStats) {
+        ADKnowledge.getStats().then(function (s) {
+          if (s.totalPatterns > 0) console.info("Knowledge DB:", s.totalPatterns);
+        }).catch(function () {});
+      }
     } catch (e) {}
+    } catch (initErr) {
+      console.error("[AutoDebugger] init failed", initErr);
+    }
   }
 
   async function handleFiles(fileListObj) {
@@ -1181,6 +1204,55 @@
     }
   }
 
+
+
+
+  /** Event delegation — guarantees critical controls work even if direct bind failed */
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    var langBtn = t.closest("[data-lang]");
+    if (langBtn) {
+      e.preventDefault();
+      try { applyLanguage(langBtn.getAttribute("data-lang")); } catch (err) { console.warn(err); }
+      return;
+    }
+    var themeBtn = t.closest("[data-theme-set]");
+    if (themeBtn) {
+      e.preventDefault();
+      try { setTheme(themeBtn.getAttribute("data-theme-set")); } catch (err) { console.warn(err); }
+      return;
+    }
+    if (t.closest("#startBtn")) {
+      e.preventDefault();
+      try { startAnalysis(); } catch (err) { console.error(err); }
+      return;
+    }
+    if (t.closest("#browseBtn")) {
+      e.preventDefault();
+      var fi = document.getElementById("fileInput");
+      if (fi) fi.click();
+      return;
+    }
+    if (t.closest("#pauseBtn")) { try { pauseAnalysis(); } catch (err) {} return; }
+    if (t.closest("#resumeBtn")) { try { resumeAnalysis(); } catch (err) {} return; }
+    if (t.closest("#cancelBtn")) { try { cancelAnalysis(); } catch (err) {} return; }
+    if (t.closest("#clearAllBtn")) { try { clearAllFiles(); } catch (err) {} return; }
+    if (t.closest("#sidebarOpen")) {
+      var side = document.getElementById("appSidebar");
+      var ov = document.getElementById("sidebarOverlay");
+      if (side) side.classList.add("open");
+      if (ov) { ov.hidden = false; ov.classList.add("show", "open"); }
+      return;
+    }
+    if (t.closest("#sidebarClose") || (t.id === "sidebarOverlay")) {
+      var side2 = document.getElementById("appSidebar");
+      var ov2 = document.getElementById("sidebarOverlay");
+      if (side2) side2.classList.remove("open");
+      if (ov2) { ov2.hidden = true; ov2.classList.remove("show", "open"); }
+      return;
+    }
+  }, true);
 
   var _origInit = init;
   init = function () {
