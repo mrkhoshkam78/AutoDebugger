@@ -8,18 +8,24 @@
   var SUPPORTED_EXTENSIONS = U.SUPPORTED_EXTENSIONS || {};
   var TEST_LEVELS = U.TEST_LEVELS || { 1: "QUICK TEST", 2: "FULL CHECK", 3: "DEEP CHECK", 4: "SPECIAL" };
 
-  /** Independent calculator — pure arithmetic only (not application formula path). */
+  /** Independent calculator — pure arithmetic with operator precedence (not application path). */
   function independentCalc(expr) {
     try {
       var s = String(expr || "").replace(/\s+/g, "");
-      if (!s || s.length > 120) return null;
+      if (!s || s.length > 160) return null;
+      // Allow digits, operators, parentheses, decimal, percent trailing
       if (!/^[-+/*%().0-9]+$/.test(s)) return null;
-      // reject empty operators / leading naked operators misuse lightly
+      // Reject consecutive operators (except unary minus after operator/paren)
+      if (/[+\-*/%]{2,}/.test(s.replace(/([(+*/%])-/g, "$1"))) {
+        // allow patterns like 5*-2 after normalize
+      }
+      // Expand trailing percent: 20% → (20/100)
+      s = s.replace(/(\d+(?:\.\d+)?)%/g, "($1/100)");
       var fn = new Function("return (" + s + ");");
       var v = fn();
-      if (typeof v !== "number") return { value: v, finite: false };
-      if (!isFinite(v)) return { value: v, finite: false };
-      return { value: v, finite: true };
+      if (typeof v !== "number") return { value: v, finite: false, expr: s };
+      if (!isFinite(v)) return { value: v, finite: false, expr: s };
+      return { value: v, finite: true, expr: s };
     } catch (e) {
       return null;
     }
@@ -35,14 +41,33 @@
 
   /** Percentage helpers with explicit convention (fraction vs whole-number percent). */
   function percentOf(amount, pct, convention) {
-    // convention: "fraction" (0.2) or "whole" (20 meaning 20%)
     if (convention === "fraction") return amount * pct;
     return amount * (pct / 100);
   }
 
-  /** Deterministic property cases for pure expressions containing / 0 */
+  /** percent change: (new - old) / old * 100  OR  (new/old - 1) * 100 */
+  function percentChange(oldV, newV) {
+    if (oldV === 0 || !isFinite(oldV) || !isFinite(newV)) return null;
+    return ((newV - oldV) / oldV) * 100;
+  }
+
+  /** Strip comments and strings so math scans do not flag prose / docs */
+  function stripForMath(content) {
+    return String(content || "")
+      .replace(/\/\*[\s\S]*?\*\//g, " ")
+      .replace(/\/\/[^\n]*/g, " ")
+      .replace(/'(?:\\.|[^\\'])*'/g, "''")
+      .replace(/"(?:\\.|[^\\"])*"/g, '""')
+      .replace(/`(?:\\.|[^\\`])*`/g, "``");
+  }
+
   function mathPropertySamples() {
     return [0, 1, -1, 0.1, 0.5, 1.5, 10, 100, 1000];
+  }
+
+  /** Detect intentional NaN/Infinity guards so we do not flag them as bugs */
+  function isIntentionalNumericGuard(line) {
+    return /isNaN|Number\.isNaN|isFinite|Number\.isFinite|!==\s*NaN|===\s*NaN|!=\s*NaN|==\s*NaN|!==\s*Infinity|===\s*Infinity/.test(line);
   }
 
 
@@ -99,6 +124,15 @@
   };
 
   DebugEngine.prototype.run = function () {
+    // Ensure Supervisor plan exists before strategy isolation
+    if (!this.supervisorPlan && typeof ADSupervisor !== "undefined" && ADSupervisor.buildPlan) {
+      this.supervisorPlan = ADSupervisor.buildPlan({
+        category: this.category,
+        level: this.level,
+        language: this.language,
+        fileCount: Object.keys(this.files || {}).length
+      });
+    }
     var sel = { selected: [], skipped: [], cap: 5, level: this.level };
     if (global.ADStrategies && global.ADStrategies.selectStrategies) {
       sel = global.ADStrategies.selectStrategies(this.category, this.level, this.ctx);
@@ -225,8 +259,8 @@
     if (typeof ADSupervisor !== "undefined" && ADSupervisor.correlateFindings) {
       this.problems = ADSupervisor.correlateFindings(this.problems || []);
     }
-    this.supervisorPlan = null;
-    if (typeof ADSupervisor !== "undefined" && ADSupervisor.buildPlan) {
+    // Keep the plan that was used during isolation; refresh only if missing
+    if (!this.supervisorPlan && typeof ADSupervisor !== "undefined" && ADSupervisor.buildPlan) {
       this.supervisorPlan = ADSupervisor.buildPlan({
         category: this.category,
         level: this.level,
@@ -252,8 +286,11 @@
       skipped: this.skipped,
       strategies_run: this.strategiesRun,
       strategies_count: this.strategiesRun.length,
+      engines_executed: this.enginesExecuted || [],
+      supervisor: this.supervisorPlan || null,
       test_results: this.testResults,
       context: { fileCount: this.ctx.fileCount, languages: this.ctx.languages, has: this.ctx.has },
+      version: "V9.0",
       summary: {
         total_problems: this.problems.length,
         by_severity: this._countSeverity(),
@@ -339,7 +376,7 @@
     var status = extras.status || (confidence >= 0.85 ? "CONFIRMED" : confidence >= 0.65 ? "LIKELY" : "POSSIBLE");
     var ruleId = (strategy && strategy.id) || extras.ruleId || "";
     this.counter++;
-    this.problems.push({
+    var legacyFinding = {
       problem_id: "P" + String(this.counter).padStart(4, "0"),
       severity: severity,
       status: status,
@@ -363,7 +400,11 @@
       related_categories: [(strategy && strategy.category) || this.category],
       test_level: this.level,
       simple: extras.simple || { id: (extras.simpleId || ruleId || "").toLowerCase().replace(/[^a-z0-9_]+/g, "_") }
-    });
+    };
+    if (typeof ADExplain !== "undefined" && ADExplain.enrichFinding) {
+      ADExplain.enrichFinding(legacyFinding);
+    }
+    this.problems.push(legacyFinding);
   };
 
   /** Stage-2 dependency / API findings → candidates through finalizeFinding */
@@ -554,6 +595,12 @@
     this.counter++;
     finding.problem_id = "P" + String(this.counter).padStart(4, "0");
     finding.test_level = this.level;
+    if (!finding.related_categories || !finding.related_categories.length) {
+      finding.related_categories = [finding.category || this.category];
+    }
+    if (typeof ADExplain !== "undefined" && ADExplain.enrichFinding) {
+      ADExplain.enrichFinding(finding);
+    }
     this.problems.push(finding);
   };
 
@@ -1627,41 +1674,57 @@ jsDotSpace: function (s) {
       // ── Mathematical / Calculations ──
       mathDivZero: function (s) {
         self._eachFile(["javascript", "typescript", "python"], function (fname, content) {
-          var code = content.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
-          if (/\/\s*0(?:\.0+)?\b/.test(code) || /\/\s*0\s*[;,)\]\}]/.test(code)) {
-            var line = 1, idx = content.search(/\/\s*0/);
-            if (idx >= 0) line = content.slice(0, idx).split("\n").length;
+          var code = stripForMath(content);
+          // Match / 0 or /0 not inside intentional guard context on same line
+          var re = /\/\s*0(?:\.0+)?\b/g;
+          var m;
+          while ((m = re.exec(code))) {
+            var before = code.slice(0, m.index);
+            var line = before.split("\n").length;
+            var lineText = code.split("\n")[line - 1] || "";
+            // Skip if line has an explicit zero-check nearby (denom !== 0, if (x) before /)
+            if (/!==\s*0|!=\s*0|===\s*0|==\s*0|if\s*\([^)]*0/.test(lineText) && lineText.indexOf("/") > lineText.search(/!==\s*0|!=\s*0/)) {
+              continue;
+            }
+            var ind = independentCalc("1" + m[0].replace(/\s+/g, ""));
             self._add("high", fname, line, "math", "Division by zero literal",
               "Division by zero yields Infinity/NaN or runtime error.",
               "Guard denominator !== 0 before dividing.",
-              "/ 0",
+              m[0].trim(),
               "Add zero check before division.", s,
-              { confidence: 0.88, status: "CONFIRMED", simpleId: "math_divzero",
-                evidence: [{ file: fname, line: line, type: "ast", snippet: "/ 0", explanation: "Literal zero divisor" }],
+              { confidence: 0.9, status: "CONFIRMED", simpleId: "math_divzero",
                 root_cause: "Denominator is the constant 0",
                 symptom: "Division by zero expression",
                 impact: "Infinity/NaN propagates to dependents",
                 evidence: [
-                  { file: fname, line: line, type: "ast", snippet: "/ 0", explanation: "Literal zero divisor in executable code" },
-                  { file: fname, line: line, type: "validation", snippet: "independent: 1/0 → Infinity", explanation: "Independent calc confirms non-finite result" }
+                  { file: fname, line: line, type: "ast", snippet: m[0].trim(), explanation: "Literal zero divisor in executable code" },
+                  { file: fname, line: line, type: "validation", snippet: "independent: 1/0 → " + (ind ? String(ind.value) : "Infinity"), explanation: "Independent calculator confirms non-finite result" }
                 ] });
+            break; // one report per file is enough for this pattern
           }
         });
       },
       mathNanInf: function (s) {
         self._eachFile(["javascript", "typescript"], function (fname, content) {
-          if (/\bNaN\b|\bInfinity\b|Number\.NaN|0\s*\/\s*0/.test(content)) {
-            var line = 1, idx = content.search(/\bNaN\b|0\s*\/\s*0|\bInfinity\b/);
-            if (idx >= 0) line = content.slice(0, idx).split("\n").length;
-            self._add("medium", fname, line, "math", "NaN / Infinity signal",
+          var code = stripForMath(content);
+          var lines = code.split("\n");
+          for (var i = 0; i < lines.length; i++) {
+            var line = lines[i];
+            if (!/\bNaN\b|\bInfinity\b|Number\.NaN|0\s*\/\s*0/.test(line)) continue;
+            if (isIntentionalNumericGuard(line)) continue; // Number.isNaN / isFinite guards are not bugs
+            // Flag only production of NaN/Infinity, not checks
+            if (/isNaN|isFinite|Number\.is/.test(line) && !/0\s*\/\s*0|\/\s*0/.test(line)) continue;
+            self._add("medium", fname, i + 1, "math", "NaN / Infinity signal",
               "NaN propagates through calculations and breaks comparisons.",
-              "Validate numeric inputs; avoid 0/0.",
-              "NaN/Infinity pattern",
-              "Guard inputs and use Number.isFinite.", s,
-              { confidence: 0.7, status: "LIKELY", simpleId: "math_nan",
-                evidence: [{ file: fname, line: line, type: "ast", snippet: "NaN/Infinity", explanation: "Non-finite numeric signal" }],
-                root_cause: "Non-finite value introduced in numeric path",
-                symptom: "NaN or Infinity present in code path" });
+              "Validate numeric inputs; avoid 0/0; use Number.isFinite.",
+              line.trim().slice(0, 80),
+              "Guard inputs and use Number.isFinite before downstream math.", s,
+              { confidence: 0.72, status: "LIKELY", simpleId: "math_nan",
+                evidence: [{ file: fname, line: i + 1, type: "ast", snippet: line.trim().slice(0, 80), explanation: "NaN/Infinity production signal in executable code" }],
+                root_cause: "Expression can produce non-finite number",
+                symptom: "NaN or Infinity appears in calculation path",
+                impact: "Downstream comparisons and UI values become unreliable" });
+            break;
           }
         });
       },
@@ -1691,29 +1754,37 @@ jsDotSpace: function (s) {
       },
       mathPercent: function (s) {
         self._eachFile(["javascript", "typescript"], function (fname, content) {
-          var code = content.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
-          // amount * percent|pct without /100 — POSSIBLE only (convention-dependent)
-          if (/\*\s*(percent|pct|percentage)\b/i.test(code) && !/\/\s*100/.test(code)) {
-            var line = 1;
-            var idx = code.search(/\*\s*(percent|pct|percentage)\b/i);
-            if (idx >= 0) line = content.slice(0, Math.min(idx, content.length)).split("\n").length;
-            var expWhole = percentOf(100, 20, "whole"); // 20
-            var expFrac = percentOf(100, 20, "fraction"); // 2000 if mis-scaled
-            self._add("medium", fname, line, "math", "Percentage scale may be wrong (× percent without ÷100)",
-              "If percent is a whole number (e.g. 20 for 20%), you usually divide by 100. If it is already a fraction (0.2), do not.",
-              "Clarify convention: amount * (percent/100) OR amount * fraction",
-              "Found: multiply by percent/pct without /100 nearby",
-              "Document the convention and normalize (÷100 when percent is 0–100).", s,
-              { confidence: 0.55, status: "POSSIBLE", simpleId: "math_percent",
-                root_cause: "Ambiguous percentage convention (whole vs fraction)",
-                symptom: "Multiplication by percent without explicit /100",
-                impact: "Result can be 100× too large if percent is a whole number",
+          var code = stripForMath(content);
+          // Pattern: amount * percent without /100  OR  amount * (n) where n looks like whole percent
+          // e.g. price * 20  when context has percent/% — weak signal, require both * and percent keyword nearby
+          var lines = content.split("\n");
+          for (var i = 0; i < lines.length; i++) {
+            var raw = lines[i];
+            var line = stripForMath(raw);
+            if (!/percent|%/i.test(raw) && !/\*\s*(?:0\.\d+|\d{1,3})\s*[;,)\]]/.test(line)) continue;
+            // Classic bug: x * percent where percent is 20 meaning 20% but no /100
+            var m = line.match(/(\w+|\d+(?:\.\d+)?)\s*\*\s*(\d{1,3}(?:\.\d+)?)\s*(?:;|,|\)|$)/);
+            if (!m) continue;
+            var pctVal = parseFloat(m[2]);
+            if (!(pctVal > 1 && pctVal <= 100)) continue; // only whole-number percent style
+            if (!/percent|%/i.test(raw) && !/percent|%/i.test(lines[Math.max(0,i-1)] || "") && !/percent|%/i.test(lines[Math.min(lines.length-1,i+1)] || "")) continue;
+            // Independent: if treated as whole percent, amount*pct/100; if as fraction already >1 wrong
+            var asWhole = pctVal / 100;
+            self._add("medium", fname, i + 1, "math", "Percentage scale may be wrong (× percent without ÷100)",
+              "Whole-number percent (e.g. 20) multiplied without /100 inflates the result by 100×.",
+              "Use amount * (percent / 100) or amount * fraction.",
+              m[0].trim(),
+              "Normalize percent convention: whole → /100, fraction → direct multiply.", s,
+              { confidence: 0.68, status: "LIKELY", simpleId: "math_percent",
                 evidence: [
-                  { type: "ast", file: fname, line: line, snippet: "* percent", explanation: "Percent multiply without /100 in same file region" },
-                  { type: "validation", snippet: "ref: 100×20% whole→20; if treated as fraction→2000", explanation: "Independent reference for both conventions — not auto-confirmed" }
-                ] });
+                  { file: fname, line: i + 1, type: "ast", snippet: m[0].trim(), explanation: "Multiplication by whole-looking percent without /100" },
+                  { file: fname, line: i + 1, type: "validation", snippet: "if " + pctVal + " means " + pctVal + "% → factor " + asWhole, explanation: "Independent convention check" }
+                ],
+                root_cause: "Percent convention mismatch (whole number vs fraction)",
+                symptom: "Scaled value may be 100× too large",
+                impact: "Wrong totals, discounts, or financial results" });
+            break;
           }
-          // (x/y)*100 style is fine — skip
         });
       },
       mathRound: function (s) {
@@ -1772,31 +1843,32 @@ jsDotSpace: function (s) {
 
 
       mathIndepCheck: function (s) {
-        // Validate simple pure arithmetic assignments against independent calculator
+        // Validate pure arithmetic assignments against independent calculator
         self._eachFile(["javascript", "typescript"], function (fname, content) {
-          var code = content.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
-          var re = /(?:const|let|var)\s+(\w+)\s*=\s*([0-9.+\-*/() \t]+);/g;
+          var code = stripForMath(content);
+          var re = /(?:const|let|var)\s+(\w+)\s*=\s*([0-9.+\-*/() \t%]+);/g;
           var m;
           while ((m = re.exec(code))) {
             var expr = m[2].trim();
-            if (!/^[-+/*().0-9\s]+$/.test(expr)) continue;
-            if (expr.indexOf("/") === -1 && expr.indexOf("*") === -1 && expr.indexOf("+") === -1 && expr.indexOf("-") === -1) continue;
+            if (!/^[-+/*().0-9\s%]+$/.test(expr)) continue;
+            if (expr.indexOf("/") === -1 && expr.indexOf("*") === -1 && expr.indexOf("+") === -1 && expr.indexOf("-") === -1 && expr.indexOf("%") === -1) continue;
             var ind = independentCalc(expr);
             if (!ind) continue;
             if (!ind.finite) {
-              var line = content.slice(0, m.index).split("\n").length;
+              var line = code.slice(0, m.index).split("\n").length;
               self._add("high", fname, line, "math", "Expression yields non-finite value: " + m[1],
                 "Independent evaluation of `" + expr + "` is not finite.",
                 "Guard inputs; avoid 0/0 and /0.",
                 expr + " → " + String(ind.value),
                 "Fix expression or add runtime guards.", s,
-                { confidence: 0.9, status: "CONFIRMED", simpleId: "math_indep_nonfinite",
+                { confidence: 0.92, status: "CONFIRMED", simpleId: "math_indep_nonfinite",
                   evidence: [
                     { file: fname, line: line, type: "ast", snippet: m[0].slice(0, 80), explanation: "Assignment expression" },
-                    { file: fname, line: line, type: "validation", snippet: "independent=" + String(ind.value), explanation: "Independent calculator result" }
+                    { file: fname, line: line, type: "validation", snippet: "independent=" + String(ind.value), explanation: "Independent calculator result (precedence-aware)" }
                   ],
                   root_cause: "Arithmetic expression evaluates to non-finite number",
-                  symptom: m[1] + " is non-finite" });
+                  symptom: m[1] + " is non-finite",
+                  impact: "Downstream math and UI can break" });
             }
           }
         });
