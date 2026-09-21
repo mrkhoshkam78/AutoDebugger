@@ -10,6 +10,7 @@
       if (overlay) {
         overlay.hidden = !on;
         overlay.classList.toggle("show", on);
+        overlay.classList.toggle("open", on);
       }
       document.body.classList.toggle("sidebar-open", on);
     }
