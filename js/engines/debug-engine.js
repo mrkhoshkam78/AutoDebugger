@@ -1,5 +1,5 @@
 /**
- * Auto Debugger V10.0 — Evidence-driven (Candidate → finalizeFinding)
+ * Auto Debugger V10.1.0 — Evidence-driven (Candidate → finalizeFinding)
  */
 (function (global) {
   "use strict";
@@ -205,7 +205,7 @@
             cfgIssues: this.cfgIssues,
             symbolicFindings: this.symbolicFindings,
             projectKey: pk,
-            version: "V10-Stage2",
+            version: "V10.1.0-Stage2",
             maxCandidates: 40
           }
         );
@@ -229,7 +229,7 @@
           stage2: this.stage2 || {},
           astMap: this.astMap,
           gitMeta: this.gitMeta || null,
-          options: { version: "V10-Stage3" }
+          options: { version: "V10.1.0-Stage3" }
         });
         if (this.stage3 && this.stage3.problems) {
           this.problems = this.stage3.problems;
@@ -290,7 +290,7 @@
       supervisor: this.supervisorPlan || null,
       test_results: this.testResults,
       context: { fileCount: this.ctx.fileCount, languages: this.ctx.languages, has: this.ctx.has },
-      version: "V10.0",
+      version: "V10.1.0",
       summary: {
         total_problems: this.problems.length,
         by_severity: this._countSeverity(),
@@ -346,7 +346,7 @@
 
   DebugEngine.prototype._add = function (severity, file, line, section, description, why, expected, detected, recommendation, strategy, extras) {
     extras = extras || {};
-    // V10.0: Rule → Candidate → finalizeFinding (Evidence + Context + Validation + Confidence)
+    // V10.1.0: Rule → Candidate → finalizeFinding (Evidence + Context + Validation + Confidence)
     if (typeof ADStandards !== "undefined" && ADStandards.finalizeFinding && ADStandards.createCandidateFromAdd) {
       var candidate = ADStandards.createCandidateFromAdd(
         severity, file, line, section, description, why, expected, detected, recommendation, strategy, extras, this.ctx
