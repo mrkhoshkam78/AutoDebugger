@@ -1,4 +1,4 @@
-# Auto Debugger V10.1.0
+# Auto Debugger V10.2.0
 
 Browser-only static analysis debugger — Evidence-Driven Static Bug Analysis Engine with specialized engines.
 
@@ -7,7 +7,7 @@ Open `index.html` in a browser, or deploy this folder to **GitHub Pages**.
 
 No server, no install, offline-first. Analysis runs in a **Web Worker** with Pause / Resume / Cancel.
 
-## V10.1.0 focus
+## V10.2.0 focus
 - **Real Specialized Engines** under Supervisor orchestration (CodeLogic, Syntax, Security, UI, UX, Responsive, Performance, Architecture, Math, Storage, Test)
 - **Engine Isolation**: Category selection controls execution, not only result filtering
 - **Math / Financial Analysis Engine** upgraded with independent calculation path, precision, boundary & formula checks

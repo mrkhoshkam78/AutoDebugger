@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl" data-theme="light">
+<html lang="fa" dir="rtl" data-theme="midnight">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="description" content="Auto Debugger — browser-only static analysis" />
-  <title>Auto Debugger V6</title>
+  <meta name="description" content="Auto Debugger V10.2 — browser-only static analysis" />
+  <title>Auto Debugger V10.2</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -12,277 +12,245 @@
 </head>
 <body class="has-sidebar">
 
+  <div class="sidebar-overlay" id="sidebarOverlay" hidden></div>
+
   <aside class="app-sidebar" id="appSidebar" aria-label="Main navigation">
+    <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Close menu">×</button>
     <div class="sidebar-brand">
       <span class="sidebar-logo" aria-hidden="true">AD</span>
       <span class="sidebar-title">Auto Debugger</span>
     </div>
     <nav class="sidebar-nav">
       <a class="nav-item active" href="index.html" data-nav="analysis">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 4-6"/></svg>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 4-6"/></svg>
         <span data-i18n="navAnalysis">Analysis</span>
       </a>
       <a class="nav-item" href="assistant.html" data-nav="assistant">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H7l-4 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H7l-4 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
         <span data-i18n="navAssistant">Assistant</span>
       </a>
       <a class="nav-item" href="settings.html" data-nav="settings">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
         <span data-i18n="navSettings">Settings</span>
       </a>
     </nav>
-    <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Close menu">×</button>
-  </aside>
-  <div class="sidebar-overlay" id="sidebarOverlay" hidden></div>
-
-  <div class="bg-wave" aria-hidden="true">
-    <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
-      <path class="bg-wave-p1" fill="currentColor" d="M0,160 C320,220 420,80 720,140 C1020,200 1120,100 1440,160 L1440,320 L0,320 Z"/>
-      <path class="bg-wave-p2" fill="currentColor" d="M0,200 C280,140 480,260 720,200 C960,140 1160,240 1440,180 L1440,320 L0,320 Z"/>
-    </svg>
-  </div>
-  <div class="app">
-    <div class="wave-deco" aria-hidden="true">
-      <svg class="wave-svg" viewBox="0 0 1440 60" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="waveGrad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stop-color="var(--primary)"/>
-            <stop offset="100%" stop-color="#8b5cf6"/>
-          </linearGradient>
-        </defs>
-        <path class="wave-path wave-back" fill="url(#waveGrad)" opacity="0.2"
-          d="M0,30 C180,50 360,10 540,30 C720,50 900,10 1080,30 C1260,50 1380,20 1440,30 L1440,0 L0,0 Z"/>
-        <path class="wave-path wave-front" fill="currentColor" opacity="0.55"
-          d="M0,36 C200,16 400,56 720,36 C1040,16 1240,48 1440,28 L1440,0 L0,0 Z"/>
-      </svg>
+    <div style="padding:8px 4px;font-size:11px;color:var(--text-faint)">
+      <span class="version" data-i18n="version">V10.2.0</span>
     </div>
-    <header class="header">
-      <div class="logo">
-        <div class="logo-icon" aria-hidden="true">
-          <img src="media/logo_header.png" alt="" class="logo-img" onerror="this.style.display='none';var f=this.nextElementSibling;if(f)f.style.display='block'" />
-          <svg class="logo-fallback" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+  </aside>
+
+  <div class="app-main">
+    <header class="topbar">
+      <button type="button" class="sidebar-open" id="sidebarOpen" aria-label="Open menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <div class="topbar-title" data-i18n="appTitle">Static Analysis Workspace</div>
+      <div class="topbar-actions">
+        <div class="header-status" id="headerStatus"><span class="dot"></span><span data-i18n="statusReady">Ready</span></div>
+        <span class="local-badge" id="localBadge" data-i18n="localBadge">Offline</span>
+        <div class="theme-switch" role="group" aria-label="Theme">
+          <button type="button" id="themeDarkBtn" data-theme-set="midnight" title="Midnight Dev">Midnight</button>
+          <button type="button" id="themeLightBtn" data-theme-set="clearspace" title="Clearspace">Clear</button>
         </div>
-        <div>
-          <h1 data-i18n="appTitle">Auto Debugger</h1>
-          <span class="version" data-i18n="version">V10.1.0</span>
-        </div>
-      </div>
-      <div class="header-right">
-        <span class="local-badge" id="localBadge" data-i18n="localBadge">Local · Offline</span>
-        <div class="header-status" id="headerStatus">
-          <span class="dot idle"></span>
-          <span data-i18n="statusReady">Ready</span>
-        </div>
-        <button type="button" class="icon-btn menu-btn" id="sidebarOpen" data-i18n-title="menuOpen" title="Menu" aria-label="Menu" aria-expanded="false">
-          <svg class="icon-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-          <svg class="icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
-        </button>
+        <button type="button" class="btn btn-ghost btn-sm" id="langEnBtn" data-lang="en">EN</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="langFaBtn" data-lang="fa">FA</button>
       </div>
     </header>
 
-    <main class="main">
-      <section class="panel config-panel glass-panel">
-        <div class="panel-header">
-          <h2 data-i18n="uploadTitle">1. Project</h2>
-        </div>
-
-        <div class="upload-zone" id="uploadZone">
-          <div class="upload-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    <main class="workspace">
+      <!-- Hero -->
+      <section class="hero" aria-labelledby="heroHeading">
+        <div class="hero-copy">
+          <div class="hero-kicker"><span data-i18n="heroKicker">Browser-only · Evidence-driven</span></div>
+          <h1 id="heroHeading" data-i18n="heroTitle">Analyze code with precision — not assumptions</h1>
+          <p data-i18n="heroSub">Upload a project, run specialized static engines, and review findings backed by AST, data-flow, and validation evidence.</p>
+          <div class="action-row" style="margin-top:0">
+            <button type="button" class="btn btn-primary" id="browseBtn" data-i18n="uploadBtn">Choose project files</button>
           </div>
-          <p class="upload-title" data-i18n="dropTitle">Drop files or ZIP</p>
-          <p class="upload-hint" data-i18n="dropHint">HTML · CSS · JS · TS · Python · Java · C/C++ · PHP · JSON · ZIP</p>
-          <input type="file" id="fileInput" multiple accept=".html,.htm,.css,.js,.mjs,.ts,.tsx,.jsx,.json,.py,.java,.c,.cpp,.h,.hpp,.php,.rb,.go,.rs,.md,.txt,.xml,.yml,.yaml,.zip" />
-          <button type="button" class="btn secondary" id="browseBtn" data-i18n="browse">Browse</button>
         </div>
+        <div class="hero-art" aria-hidden="true">
+          <svg viewBox="0 0 320 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="waveGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#6366f1"/><stop offset="100%" stop-color="#22d3ee"/>
+              </linearGradient>
+              <linearGradient id="screenG" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#1e293b"/><stop offset="100%" stop-color="#0f172a"/>
+              </linearGradient>
+            </defs>
+            <rect x="48" y="36" width="180" height="120" rx="10" fill="url(#screenG)" stroke="url(#waveGrad)" stroke-width="1.5"/>
+            <rect x="56" y="48" width="164" height="8" rx="2" fill="#334155"/>
+            <rect x="56" y="64" width="90" height="6" rx="2" fill="#6366f1" opacity="0.8"/>
+            <rect x="56" y="78" width="120" height="6" rx="2" fill="#22d3ee" opacity="0.5"/>
+            <rect x="56" y="92" width="70" height="6" rx="2" fill="#8b5cf6" opacity="0.6"/>
+            <rect x="56" y="106" width="100" height="6" rx="2" fill="#334155"/>
+            <rect x="56" y="120" width="55" height="6" rx="2" fill="#475569"/>
+            <rect x="90" y="156" width="96" height="8" rx="2" fill="#1e293b"/>
+            <ellipse cx="138" cy="172" rx="70" ry="6" fill="#000" opacity="0.25"/>
+            <circle cx="250" cy="70" r="28" stroke="url(#waveGrad)" stroke-width="3" fill="none"/>
+            <line x1="270" y1="90" x2="292" y2="112" stroke="url(#waveGrad)" stroke-width="3" stroke-linecap="round"/>
+            <text x="230" y="50" fill="#8b5cf6" font-size="14" font-family="monospace">{ }</text>
+            <text x="200" y="130" fill="#22d3ee" font-size="12" font-family="monospace">&lt;/&gt;</text>
+            <text x="260" y="140" fill="#6366f1" font-size="11" font-family="monospace">fn()</text>
+          </svg>
+        </div>
+      </section>
 
-        <div class="upload-meta" id="uploadMeta" hidden>
-          <div class="upload-label">
-            <span class="upload-label-title" data-i18n="uploadedProject">Uploaded</span>
-            <span class="upload-label-name" id="uploadProjectName" title=""></span>
+      <!-- Upload -->
+      <section class="panel" aria-labelledby="uploadTitle">
+        <h2 class="panel-title" id="uploadTitle">
+          <span data-i18n="uploadTitle">Project upload</span>
+          <span class="muted" data-i18n="uploadHint">ZIP or source files · client-side only</span>
+        </h2>
+        <div class="upload-zone" id="uploadZone" role="button" tabindex="0" aria-label="Upload zone">
+          <div class="upload-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
           </div>
-          <button type="button" class="btn secondary btn-sm" id="clearAllBtn" data-i18n="clearAll">Clear all</button>
+          <h3 data-i18n="dropTitle">Drop project here</h3>
+          <p data-i18n="dropSub">.js · .ts · .py · .html · .css · .json · .php · .zip</p>
+          <button type="button" class="btn btn-ghost" data-i18n="browseFiles">Browse files</button>
+          <input type="file" id="fileInput" class="sr-only" multiple accept=".js,.ts,.tsx,.jsx,.py,.html,.htm,.css,.json,.php,.java,.go,.rs,.zip,text/*" />
         </div>
+        <div class="upload-meta" id="uploadMeta"></div>
+        <div id="uploadProjectName" class="upload-meta"></div>
+        <ul class="file-list" id="fileList" hidden></ul>
+      </section>
 
-        <div class="file-list" id="fileList">
-          <p class="empty-state" data-i18n="noFiles">No files yet</p>
-        </div>
-
-        <div class="panel-header" style="margin-top:1.25rem">
-          <h2 data-i18n="configTitle">2. Configuration</h2>
-        </div>
-
-        <div class="form-grid">
-          <label>
-            <span data-i18n="langLabel">Language</span>
+      <!-- Config -->
+      <section class="panel" aria-labelledby="configTitle">
+        <h2 class="panel-title" id="configTitle" data-i18n="configTitle">Analysis configuration</h2>
+        <div class="config-grid">
+          <div class="field">
+            <label for="languageSelect" data-i18n="language">Language</label>
             <select id="languageSelect">
-              <option value="auto" data-i18n="autoDetect">Auto-detect</option>
-              <option value="html">HTML</option>
-              <option value="css">CSS</option>
+              <option value="auto">Auto</option>
               <option value="javascript">JavaScript</option>
               <option value="typescript">TypeScript</option>
               <option value="python">Python</option>
-              <option value="java">Java</option>
-              <option value="c">C / C++</option>
+              <option value="html">HTML</option>
+              <option value="css">CSS</option>
               <option value="php">PHP</option>
-              <option value="json">JSON</option>
-              <option value="other">Other</option>
+              <option value="java">Java</option>
             </select>
-          </label>
-
-          <label>
-            <span data-i18n="categoryLabel">Category</span>
+          </div>
+          <div class="field">
+            <label for="categorySelect" data-i18n="category">Category</label>
             <select id="categorySelect">
-              <option value="Test All" data-i18n="catTestAll">Test All</option>
-              <option value="Code / Logic" data-i18n="catCode">Code / Logic</option>
-              <option value="UI" data-i18n="catUI">UI</option>
-              <option value="UX" data-i18n="catUX">UX</option>
-              <option value="Performance" data-i18n="catPerf">Performance</option>
-              <option value="Syntax" data-i18n="catSyntax">Syntax</option>
-              <option value="Security" data-i18n="catSec">Security</option>
-              <option value="Responsive behavior" data-i18n="catResp">Responsive</option>
-              <option value="Structure / Architecture" data-i18n="catStruct">Structure / Architecture</option>
-              <option value="Mathematical / Calculations" data-i18n="catMath">Mathematical / Calculations</option>
-              <option value="Database / Storage" data-i18n="catStorage">Database / Storage</option>
+              <option value="Test All">Test All</option>
+              <option value="Code / Logic">Code / Logic</option>
+              <option value="Security">Security</option>
+              <option value="Performance">Performance</option>
+              <option value="UI / UX">UI / UX</option>
+              <option value="Mathematical / Calculations">Math</option>
+              <option value="Storage / Database">Storage</option>
+              <option value="Syntax">Syntax</option>
             </select>
-          </label>
-
-          <div class="level-picker">
-            <span class="level-picker-label" data-i18n="levelLabel">Test level</span>
-            <div class="level-options" id="levelSelect" role="radiogroup">
-              <button type="button" class="level-opt active" data-level="1" aria-pressed="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                <span data-i18n="lvl1">Quick</span>
-              </button>
-              <button type="button" class="level-opt" data-level="2" aria-pressed="false">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                <span data-i18n="lvl2">Full</span>
-              </button>
-              <button type="button" class="level-opt" data-level="3" aria-pressed="false">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
-                <span data-i18n="lvl3">Deep</span>
-              </button>
-              <button type="button" class="level-opt" data-level="4" aria-pressed="false">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2 6h6l-5 4 2 6-5-4-5 4 2-6-5-4h6l2-6z"/></svg>
-                <span data-i18n="lvl4">Special</span>
-              </button>
-            </div>
+          </div>
+          <div class="field">
+            <label for="levelSelect" data-i18n="level">Depth</label>
+            <select id="levelSelect">
+              <option value="1">1 — Quick</option>
+              <option value="2">2 — Full</option>
+              <option value="3">3 — Specialized</option>
+              <option value="4">4 — Deep</option>
+            </select>
             <input type="hidden" id="levelValue" value="1" />
+            <p class="level-desc" id="levelDesc"></p>
           </div>
         </div>
-
-        <div class="level-desc" id="levelDesc" data-i18n="level1Desc">Quick syntax & structure checks. Fully local.</div>
-
-        <button type="button" class="btn primary full" id="startBtn" disabled>
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-          <span data-i18n="startBtn">Start analysis</span>
-        </button>
-        <div class="worker-controls" id="workerControls" hidden style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
-          <button type="button" class="btn secondary" id="pauseBtn" data-i18n="pauseBtn">Pause</button>
-          <button type="button" class="btn secondary" id="resumeBtn" data-i18n="resumeBtn" hidden>Resume</button>
-          <button type="button" class="btn danger" id="cancelBtn" data-i18n="cancelBtn">Cancel</button>
+        <div class="mode-pills" aria-hidden="true">
+          <span class="mode-pill on">Quick</span>
+          <span class="mode-pill">Full</span>
+          <span class="mode-pill">Specialized</span>
+          <span class="mode-pill">Deep</span>
         </div>
-
+        <div class="action-row">
+          <button type="button" class="btn btn-primary" id="startBtn" disabled data-i18n="startAnalysis">Start analysis</button>
+          <div class="worker-controls" id="workerControls">
+            <button type="button" class="btn btn-ghost btn-sm" id="pauseBtn" data-i18n="pause">Pause</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="resumeBtn" data-i18n="resume">Resume</button>
+            <button type="button" class="btn btn-danger btn-sm" id="cancelBtn" data-i18n="cancel">Cancel</button>
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm" id="clearAllBtn" data-i18n="clearAll">Clear</button>
+        </div>
         <div class="progress-wrap" id="progressWrap" hidden>
           <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-          <p class="progress-text" id="progressText" data-i18n="analyzing">Analyzing…</p>
-          <p class="progress-meta" id="progressMeta"></p>
-          <ul class="progress-stages" id="progressStages" aria-live="polite">
-            <li data-stage="understand"><span class="stage-dot"></span><span data-i18n="stageUnderstand">Understanding project</span></li>
-            <li data-stage="context"><span class="stage-dot"></span><span data-i18n="stageContext">Mapping context</span></li>
-            <li data-stage="select"><span class="stage-dot"></span><span data-i18n="stageSelect">Selecting strategies</span></li>
-            <li data-stage="ast"><span class="stage-dot"></span><span data-i18n="stageAst">AST parsing</span></li>
-            <li data-stage="analyze"><span class="stage-dot"></span><span data-i18n="stageAnalyze">Running analysis</span></li>
-            <li data-stage="security"><span class="stage-dot"></span><span data-i18n="stageSecurity">Security analysis</span></li>
-            <li data-stage="merge"><span class="stage-dot"></span><span data-i18n="stageMerge">Merging findings</span></li>
-            <li data-stage="report"><span class="stage-dot"></span><span data-i18n="stageReport">Generating report</span></li>
-          </ul>
+          <div class="progress-text" id="progressText"></div>
+          <div class="progress-text" id="progressMeta"></div>
+          <div class="progress-stages" id="progressStages"></div>
         </div>
       </section>
 
-      <section class="panel results-panel glass-panel">
-        <div class="panel-header">
-          <h2 data-i18n="resultsTitle">3. Results</h2>
-          <div class="filters" id="filters" hidden>
-            <select id="severityFilter">
-              <option value="all" data-i18n="allSeverities">All severities</option>
-              <option value="critical" data-i18n="critical">Critical</option>
-              <option value="high" data-i18n="high">High</option>
-              <option value="medium" data-i18n="medium">Medium</option>
-              <option value="low" data-i18n="low">Low</option>
-              <option value="info" data-i18n="info">Info</option>
-            </select>
-            <select id="categoryFilter">
-              <option value="all" data-i18n="allCategories">All categories</option>
-            </select>
-            <select id="fileFilter">
-              <option value="all" data-i18n="allFiles">All files</option>
-            </select>
-          </div>
+      <!-- Results -->
+      <section class="panel" id="resultsContent" aria-labelledby="resultsTitle">
+        <h2 class="panel-title" id="resultsTitle">
+          <span data-i18n="resultsTitle">Findings</span>
+          <span class="muted" id="problemCount"></span>
+        </h2>
+        <div class="results-empty" id="resultsEmpty">
+          <svg width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <rect x="10" y="14" width="44" height="36" rx="6" stroke="currentColor" stroke-width="2" opacity="0.4"/>
+            <path d="M20 28h24M20 36h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.35"/>
+            <circle cx="44" cy="40" r="10" stroke="currentColor" stroke-width="2" opacity="0.5"/>
+            <path d="M51 47l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+          </svg>
+          <p data-i18n="resultsEmpty">Upload a project and run analysis to see findings here.</p>
         </div>
-
-        <div id="resultsEmpty" class="empty-results">
-          <div class="empty-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          </div>
-          <h3 data-i18n="noAnalysis">No analysis yet</h3>
-          <p data-i18n="noAnalysisHint">Load files, set options, then run analysis. Everything stays in your browser.</p>
+        <div class="summary-cards" id="summaryCards" hidden></div>
+        <div class="filters" id="filters" hidden>
+          <select id="severityFilter" aria-label="Severity filter">
+            <option value="">All severities</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+            <option value="info">Info</option>
+          </select>
+          <select id="categoryFilter" aria-label="Category filter">
+            <option value="">All categories</option>
+          </select>
+          <input type="search" id="fileFilter" placeholder="Filter by file…" data-i18n-placeholder="filterFile" />
         </div>
-
-        <div id="resultsContent" hidden>
-          <div class="summary-cards" id="summaryCards"></div>
-          <div class="section">
-            <h3 data-i18n="testExec">Tests</h3>
-            <div class="test-list" id="testList"></div>
-          </div>
-          <div class="section">
-            <h3><span data-i18n="problems">Problems</span> <span class="badge" id="problemCount">0</span></h3>
-            <div class="problem-list" id="problemList"></div>
-          </div>
-        </div>
+        <div class="problem-list" id="problemList"></div>
+        <div id="testList" hidden></div>
       </section>
 
-      <!-- Final Prompt -->
-      <section class="glass-panel final-prompt-section" id="finalPromptSection" hidden>
-        <div class="panel-header">
-          <h2 data-i18n="finalPromptTitle">Generate Final Prompt</h2>
-          <button type="button" class="btn secondary btn-sm" id="copyPromptBtn" data-i18n="copyPrompt">Copy Prompt</button>
-        </div>
-        <p class="final-prompt-hint" data-i18n="finalPromptHint">Professional fix prompt from confirmed findings only.</p>
+      <section class="panel final-prompt-section" id="finalPromptSection" hidden>
+        <h2 class="panel-title">
+          <span data-i18n="finalPromptTitle">Fix prompt</span>
+          <button type="button" class="btn btn-ghost btn-sm" id="copyPromptBtn" data-i18n="copy">Copy</button>
+        </h2>
+        <p class="level-desc" data-i18n="finalPromptHint">Evidence-driven fix brief from actionable findings only.</p>
         <pre class="final-prompt-box" id="finalPromptBox"></pre>
       </section>
     </main>
 
-    
-      
-
     <footer class="footer">
-      <span data-i18n="footerLeft">V7.0 · Evidence · AST · Worker · Offline · No auto-fix</span>
+      <span data-i18n="footerLeft">V10.2.0 · Supervisor · Specialized Engines · Offline · No auto-fix</span>
       <span data-i18n="footerRight">Offline · IndexedDB · Safe</span>
     </footer>
   </div>
 
-  <!-- Settings -->
   <div class="settings-overlay" id="settingsOverlay">
-    <div class="settings-panel glass-panel" role="dialog" aria-labelledby="settingsTitle">
+    <div class="settings-panel" role="dialog" aria-labelledby="settingsTitle">
       <div class="settings-header">
         <h2 id="settingsTitle" data-i18n="settings">Settings</h2>
         <button type="button" class="icon-btn" id="settingsClose" aria-label="Close">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
       </div>
       <div class="settings-group">
         <span data-i18n="settingsLang">UI language</span>
         <div class="settings-row">
-          <button type="button" id="langEnBtn" data-lang="en">English</button>
-          <button type="button" id="langFaBtn" data-lang="fa">فارسی</button>
+          <button type="button" data-lang="en">English</button>
+          <button type="button" data-lang="fa">فارسی</button>
         </div>
       </div>
       <div class="settings-group">
         <span data-i18n="settingsTheme">Theme</span>
         <div class="settings-row">
-          <button type="button" id="themeDarkBtn" data-theme-set="dark" data-i18n="themeDark">Dark</button>
-          <button type="button" id="themeLightBtn" data-theme-set="light" data-i18n="themeLight">Light</button>
+          <button type="button" id="themeDarkBtn2" data-theme-set="midnight">Midnight Dev</button>
+          <button type="button" id="themeLightBtn2" data-theme-set="clearspace">Clearspace</button>
         </div>
       </div>
     </div>

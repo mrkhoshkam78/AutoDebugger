@@ -63,18 +63,25 @@
     copyPromptBtn = $("#copyPromptBtn");
   }
 
+  function normalizeTheme(theme) {
+    theme = String(theme || "").toLowerCase();
+    if (theme === "light" || theme === "clearspace") return "clearspace";
+    if (theme === "dark" || theme === "midnight") return "midnight";
+    return "midnight";
+  }
+
   function loadTheme() {
-    var theme = "light";
+    var theme = "midnight";
     try {
       var s = localStorage.getItem("ad_theme");
-      if (s === "light" || s === "dark") theme = s;
+      if (s) theme = normalizeTheme(s);
     } catch (e) {}
     document.documentElement.setAttribute("data-theme", theme);
     return theme;
   }
 
   function setTheme(theme) {
-    theme = theme === "light" ? "light" : "dark";
+    theme = normalizeTheme(theme);
     document.documentElement.setAttribute("data-theme", theme);
     try { localStorage.setItem("ad_theme", theme); } catch (e) {}
     syncSettingsUI();
@@ -112,15 +119,19 @@
 
   function syncSettingsUI() {
     var lang = ADi18n.getLang();
-    var theme = document.documentElement.getAttribute("data-theme") || "dark";
+    var theme = normalizeTheme(document.documentElement.getAttribute("data-theme") || "midnight");
     var langEnBtn = $("#langEnBtn");
     var langFaBtn = $("#langFaBtn");
     var themeDarkBtn = $("#themeDarkBtn");
     var themeLightBtn = $("#themeLightBtn");
     if (langEnBtn) langEnBtn.classList.toggle("active", lang === "en");
     if (langFaBtn) langFaBtn.classList.toggle("active", lang === "fa");
-    if (themeDarkBtn) themeDarkBtn.classList.toggle("active", theme === "dark");
-    if (themeLightBtn) themeLightBtn.classList.toggle("active", theme === "light");
+    if (themeDarkBtn) themeDarkBtn.classList.toggle("active", theme === "midnight");
+    if (themeLightBtn) themeLightBtn.classList.toggle("active", theme === "clearspace");
+    document.querySelectorAll("[data-theme-set]").forEach(function (btn) {
+      var t = normalizeTheme(btn.getAttribute("data-theme-set"));
+      btn.classList.toggle("active", t === theme);
+    });
   }
 
   function setStatus(text, state) {
@@ -316,9 +327,31 @@
         uploadZone.classList.remove("dragover");
         if (e.dataTransfer.files && e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
       });
+      uploadZone.addEventListener("click", function (e) {
+        if (e.target.closest("button")) return;
+        if (fileInput) fileInput.click();
+      });
+      uploadZone.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          if (fileInput) fileInput.click();
+        }
+      });
     }
 
     if (startBtn) startBtn.addEventListener("click", startAnalysis);
+
+    if (levelSelect) {
+      levelSelect.addEventListener("change", function () {
+        var hv = document.getElementById("levelValue");
+        if (hv) hv.value = levelSelect.value;
+        updateLevelDesc();
+        document.querySelectorAll(".mode-pill").forEach(function (pill, i) {
+          pill.classList.toggle("on", String(i + 1) === String(levelSelect.value));
+        });
+      });
+    }
+
     var pauseBtn = document.getElementById("pauseBtn");
     var resumeBtn = document.getElementById("resumeBtn");
     var cancelBtn = document.getElementById("cancelBtn");
@@ -400,8 +433,13 @@
     var themeLightBtn = $("#themeLightBtn");
     if (langEnBtn) langEnBtn.addEventListener("click", function () { applyLanguage("en"); });
     if (langFaBtn) langFaBtn.addEventListener("click", function () { applyLanguage("fa"); });
-    if (themeDarkBtn) themeDarkBtn.addEventListener("click", function () { setTheme("dark"); });
-    if (themeLightBtn) themeLightBtn.addEventListener("click", function () { setTheme("light"); });
+    if (themeDarkBtn) themeDarkBtn.addEventListener("click", function () { setTheme("midnight"); });
+    if (themeLightBtn) themeLightBtn.addEventListener("click", function () { setTheme("clearspace"); });
+    document.querySelectorAll("[data-theme-set]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        setTheme(btn.getAttribute("data-theme-set"));
+      });
+    });
 
     try {
       ADKnowledge.getStats().then(function (s) {
