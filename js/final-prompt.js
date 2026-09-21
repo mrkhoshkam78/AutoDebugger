@@ -1,5 +1,5 @@
 /**
- * Final Prompt Generator — Auto Debugger V10.1.0
+ * Final Prompt Generator — Auto Debugger V11.0.0
  * Evidence-Driven Prompt Engineering Engine.
  * Pipeline: Valid Findings → Group by Root Cause → Rank → Build Context → Adaptive Sections → Quality Check → Prompt
  * Language-aware (Persian / English). Max soft ceiling ~2000 lines; prefer short for simple cases.
@@ -20,7 +20,7 @@
   function isValidFinding(p, opts) {
     if (!p) return false;
     opts = opts || {};
-    // Central Intelligence gates (V10.1.0)
+    // Central Intelligence gates (V11.0.0)
     if (p._ci_suppress_prompt === true) return false;
     if (p._ci_suppressed === true) return false;
     if (p._ci_prompt_ready === false && opts.forceAll !== true) return false;
@@ -153,7 +153,7 @@
     lines.push("");
 
     lines.push("[PROJECT CONTEXT]");
-    lines.push("A local browser-only debugger (Auto Debugger V10.1.0) analyzed the project.");
+    lines.push("A local browser-only debugger (Auto Debugger V11.0.0) analyzed the project.");
     lines.push("Files involved: " + (fileList.join(", ") || "n/a"));
     if (meta.category) lines.push("Category focus: " + meta.category);
     if (meta.level) lines.push("Analysis level: " + meta.level);
@@ -318,7 +318,7 @@
     lines.push("");
 
     lines.push("[PROJECT CONTEXT]");
-    lines.push("یک دیباگر محلی و مرورگرمحور (Auto Debugger V10.1.0) پروژه را تحلیل کرده است.");
+    lines.push("یک دیباگر محلی و مرورگرمحور (Auto Debugger V11.0.0) پروژه را تحلیل کرده است.");
     lines.push("فایل‌های درگیر: " + (fileList.join("، ") || "نامشخص"));
     if (meta.category) lines.push("تمرکز دسته: " + meta.category);
     if (meta.level) lines.push("سطح تحلیل: " + meta.level);
@@ -541,6 +541,6 @@
     generate: generate,
     isValidFinding: isValidFinding,
     groupByRootCause: groupByRootCause,
-    version: "V10.1.0"
+    version: "V11.0.0"
   };
 })(typeof window !== "undefined" ? window : globalThis);

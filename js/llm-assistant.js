@@ -1,5 +1,5 @@
 /**
- * Auto Debugger V10.1.0 — LLM Assistant
+ * Auto Debugger V11.0.0 — LLM Assistant
  * Evidence-only. Never invents bugs.
  * Optimizations: compact context, response cache, AbortController, lean prompts.
  */
@@ -246,7 +246,7 @@
     activeAbort = typeof AbortController !== "undefined" ? new AbortController() : null;
 
     var system = [
-      "Auto Debugger V10.1.0 Assistant. STATIC ANALYSIS only.",
+      "Auto Debugger V11.0.0 Assistant. STATIC ANALYSIS only.",
       "NEVER invent bugs. Missing evidence → INCONCLUSIVE.",
       "POSSIBLE/heuristic ≠ CONFIRMED. LLM Opinion ≠ Bug Evidence.",
       "User language. Concise.",
@@ -362,7 +362,7 @@
   }
 
   global.ADLLM = {
-    version: "V10.1.0",
+    version: "V11.0.0",
     loadConfig: loadConfig,
     isProviderReady: isProviderReady,
     detectIntent: detectIntent,

@@ -1,5 +1,5 @@
 /**
- * Auto Debugger V10.1.0 — Central Intelligence (Meta-Review Engine)
+ * Auto Debugger V11.0.0 — Central Intelligence (Meta-Review Engine)
  * Runs AFTER specialized engines + correlation.
  *
  * 8 meta capabilities + 20 Debug Principles (enforced as gates):
@@ -601,7 +601,7 @@
 
   // ── 8. Final Verdict & Prompt Readiness ────────────────────────
   /**
-   * Final Verdict — three tiers (V10.1.0):
+   * Final Verdict — three tiers (V11.0.0):
    *   ACTIONABLE  → Fix-Prompt eligible (high evidence)
    *   ADVISORY    → shown in UI, not auto-prompt
    *   NOISE       → suppressed / principle-killed (already filtered)
@@ -692,7 +692,7 @@
     var problems = (result.problems || []).slice();
     var context = result.context || {};
     var report = {
-      version: "V10.1.0-CI",
+      version: "V11.0.0-CI",
       inputCount: problems.length,
       consistencyNotes: [],
       crossFileNotes: [],
@@ -759,7 +759,7 @@
 
   global.ADCentralIntelligence = {
     review: review,
-    version: "V10.1.0",
+    version: "V11.0.0",
     principles: DEBUG_PRINCIPLES,
     features: [
       "Meta-Consistency Check",
