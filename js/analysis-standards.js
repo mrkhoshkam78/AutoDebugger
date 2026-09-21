@@ -352,7 +352,16 @@
     if (confidenceScore < CONFIDENCE_THRESHOLDS.possible) return "DO_NOT_REPORT";
 
     if (section === "security" || cat.indexOf("security") !== -1) {
-      if (confidenceScore >= CONFIDENCE_THRESHOLDS.high) return "SECURITY_ISSUE";
+      // SECURITY_ISSUE only with strong score AND non-heuristic evidence
+      var hasStrongEv = false;
+      var ev = candidate.evidence || [];
+      for (var i = 0; i < ev.length; i++) {
+        var t = ((ev[i] && ev[i].type) || "").toLowerCase();
+        if (t === "dataflow" || t === "validation" || t === "ast") { hasStrongEv = true; break; }
+      }
+      var heuristic = candidate.flags && candidate.flags.heuristicOnly;
+      if (confidenceScore >= CONFIDENCE_THRESHOLDS.high && hasStrongEv && !heuristic) return "SECURITY_ISSUE";
+      if (confidenceScore >= 90 && hasStrongEv) return "SECURITY_ISSUE";
       return "POSSIBLE_ISSUE";
     }
 
@@ -365,8 +374,12 @@
       return "CODE_SMELL";
     }
 
+    if (candidate.flags && candidate.flags.heuristicOnly && confidenceScore < 90) {
+      return "POSSIBLE_ISSUE";
+    }
     if (confidenceScore >= CONFIDENCE_THRESHOLDS.confirmed) return "CONFIRMED_BUG";
-    if (confidenceScore >= CONFIDENCE_THRESHOLDS.high) return "CONFIRMED_BUG";
+    // high band without confirmed threshold: LIKELY-class possible, not auto CONFIRMED
+    if (confidenceScore >= CONFIDENCE_THRESHOLDS.high) return "POSSIBLE_ISSUE";
     return "POSSIBLE_ISSUE";
   }
 

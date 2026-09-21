@@ -204,19 +204,45 @@
       var strength = evidenceStrength(p);
       var heuristic = isHeuristicOnly(p);
       var next = base;
-      if (strength >= 0.4) next = Math.min(0.98, base + 0.08);
-      else if (strength >= 0.2) next = Math.min(0.95, base + 0.03);
-      else if (heuristic) next = Math.max(0.2, base - 0.12);
-      // Cap pure heuristic
-      if (heuristic && next > 0.7) next = 0.7;
+      var hasDataflow = false;
+      var ev = p.evidence;
+      if (Array.isArray(ev)) {
+        hasDataflow = ev.some(function (e) {
+          return e && typeof e === "object" && /dataflow|validation/i.test(e.type || "");
+        });
+      }
+      if (strength >= 0.45 && hasDataflow) next = Math.min(0.98, base + 0.1);
+      else if (strength >= 0.25) next = Math.min(0.92, base + 0.04);
+      else if (heuristic) next = Math.max(0.18, base - 0.18);
+      // Hard caps: pure heuristic never reaches CONFIRMED band
+      if (heuristic && !hasDataflow) {
+        if (next > 0.55) next = 0.55;
+        if (/security/i.test(p.category || "") || /innerHTML|eval|XSS/i.test(p.description || "")) {
+          if (next > 0.5) next = 0.5;
+          if (p.severity === "critical") p.severity = "medium";
+          if (p.severity === "high") p.severity = "medium";
+        }
+      }
+      // Math percent without validation must stay POSSIBLE
+      if (/math_percent|percent convention|× percent|scaled value may be/i.test(
+            (p.simple && p.simple.id) + " " + (p.description || "") + " " + (p.rule_id || ""))) {
+        if (!hasDataflow) {
+          next = Math.min(next, 0.55);
+          p.status = "POSSIBLE";
+        }
+      }
       p.confidence = Math.round(next * 1000) / 1000;
       p._ci_evidence_strength = Math.round(strength * 100) / 100;
       p._ci_heuristic = heuristic;
-      // Align status with confidence
-      if (p.confidence >= 0.85 && p.status !== "CONFIRMED") p.status = "CONFIRMED";
-      else if (p.confidence >= 0.65 && p.status === "POSSIBLE") p.status = "LIKELY";
-      else if (p.confidence < 0.45 && p.status === "CONFIRMED") p.status = "LIKELY";
-      else if (p.confidence < 0.35) p.status = "POSSIBLE";
+      p._ci_has_dataflow = hasDataflow;
+      // Align status — never auto-promote heuristic to CONFIRMED
+      if (p.confidence >= 0.88 && hasDataflow && !heuristic) p.status = "CONFIRMED";
+      else if (p.confidence >= 0.85 && !heuristic) {
+        if (p.status !== "CONFIRMED") p.status = "CONFIRMED";
+      } else if (p.confidence >= 0.65 && p.status === "POSSIBLE" && !heuristic) p.status = "LIKELY";
+      else if (p.confidence < 0.55 && p.status === "CONFIRMED") p.status = "LIKELY";
+      else if (p.confidence < 0.4) p.status = "POSSIBLE";
+      if (heuristic && !hasDataflow && p.status === "CONFIRMED") p.status = "POSSIBLE";
     });
   }
 
@@ -224,31 +250,72 @@
   function falsePositiveSentinel(problems) {
     var suppressed = 0;
     var out = [];
+    var seenDomSink = Object.create(null);
+
     problems.forEach(function (p) {
       var fname = p.file_name || p.file || "";
       var drop = false;
       var reason = "";
+      var blob = ((p.description || "") + " " + (p.symptom || "") + " " + (p.detected_behavior || "") + " " + (p.root_cause || "")).toLowerCase();
+      var snip = "";
+      if (Array.isArray(p.evidence)) {
+        p.evidence.forEach(function (e) {
+          if (e && e.snippet) snip += " " + e.snippet;
+        });
+      }
+      snip = snip.toLowerCase();
 
-      if (isVendorOrTool(fname) && /security|eval|innerHTML/i.test(p.category + " " + (p.description || ""))) {
-        drop = true;
-        reason = "tool_or_vendor_security_scan";
+      if (isVendorOrTool(fname) && /security|eval|innerhtml/i.test(p.category + " " + blob)) {
+        drop = true; reason = "tool_or_vendor_security_scan";
       }
       if (isFixture(fname) && confOf(p) < 0.75) {
-        drop = true;
-        reason = "fixture_low_confidence";
+        drop = true; reason = "fixture_low_confidence";
       }
-      // Intentional numeric guards already partially handled in engine; reinforce
-      var desc = (p.description || "") + " " + (p.detected_behavior || "");
-      if (/isNaN|isFinite|Number\.isNaN|Number\.isFinite/i.test(desc) && /NaN|Infinity/i.test(p.symptom || p.description || "")) {
-        if (confOf(p) < 0.8) {
-          drop = true;
-          reason = "intentional_numeric_guard";
+      // Intentional numeric guards
+      if (/isnan|isfinite|number\.isnan|number\.isfinite/i.test(blob) && /nan|infinity/i.test(blob)) {
+        if (confOf(p) < 0.85) { drop = true; reason = "intentional_numeric_guard"; }
+      }
+      // UI display percent: Math.round(x*100), width = p*100 + '%', progress bars
+      if (/percent|scaled value|× percent|math_percent|convention mismatch/i.test(blob)) {
+        if (/math\.round\s*\(.*\*\s*100|\*\s*100.*%|progress|style\.width|confidence|slider|intensity|seek|duration/i.test(blob + snip + " " + (p.file_name || ""))) {
+          drop = true; reason = "ui_display_percent_scale";
+        }
+        // Also drop weak percent without strong financial context markers in evidence
+        if (!drop && isHeuristicOnly(p) && confOf(p) < 0.7) {
+          drop = true; reason = "weak_percent_heuristic";
         }
       }
-      // Very weak possible with no evidence
-      if ((p.status === "POSSIBLE" || confOf(p) < 0.35) && isHeuristicOnly(p) && !p._ci_unified_primary) {
-        drop = true;
-        reason = "weak_heuristic_possible";
+      // DOM static sink without dataflow: keep at most ONE representative per file
+      if (/dom html sink|dom static signal|requires data-flow confirmation/i.test(blob)) {
+        var dk = fname + "|dom-sink";
+        if (seenDomSink[dk]) {
+          drop = true; reason = "duplicate_dom_sink_signal";
+        } else {
+          seenDomSink[dk] = true;
+          // force low severity / not confirmed
+          p.severity = "low";
+          p.status = "POSSIBLE";
+          p.confidence = Math.min(confOf(p), 0.5);
+          p._ci_suppress_prompt = true;
+        }
+      }
+      // innerHTML hygiene without dataflow: not critical, not prompt-primary
+      if (/innerhtml assignment/i.test(blob) && isHeuristicOnly(p) && !p._ci_has_dataflow) {
+        if (p.severity === "critical" || p.severity === "high") p.severity = "medium";
+        p.status = "POSSIBLE";
+        p.confidence = Math.min(confOf(p), 0.5);
+        p._ci_suppress_prompt = true;
+      }
+      // Critical on line 1 / empty location with only static claim
+      if ((p.line === 1 || p.line === 0) && /security|xss|user input/i.test(blob) && isHeuristicOnly(p)) {
+        drop = true; reason = "line1_heuristic_security";
+      }
+      // Very weak possible
+      if (!drop && (p.status === "POSSIBLE" || confOf(p) < 0.35) && isHeuristicOnly(p) && !p._ci_unified_primary) {
+        // keep one DOM sink rep; drop other weak noise
+        if (!/dom html sink|innerhtml/i.test(blob)) {
+          drop = true; reason = "weak_heuristic_possible";
+        }
       }
 
       if (drop) {
@@ -319,11 +386,18 @@
       var st = (p.status || "").toUpperCase();
       var cls = (p.classification || "").toUpperCase();
       var ready = false;
-      if (cls === "CONFIRMED_BUG" || cls === "SECURITY_ISSUE" || cls === "PERFORMANCE_ISSUE"
-          || cls === "CONFIRMED_SECURITY_ISSUE" || cls === "CONFIRMED_PERFORMANCE_ISSUE") ready = true;
-      if (st === "CONFIRMED" && conf >= 0.7) ready = true;
-      if (st === "LIKELY" && conf >= 0.75) ready = true;
-      if (conf >= 0.85) ready = true;
+      var heuristic = p._ci_heuristic || isHeuristicOnly(p);
+      var hasFlow = p._ci_has_dataflow === true;
+      // Only high-evidence items are prompt-ready
+      if (!heuristic && hasFlow && (cls === "CONFIRMED_BUG" || cls === "SECURITY_ISSUE" || cls === "CONFIRMED_SECURITY_ISSUE")) ready = true;
+      if (!heuristic && st === "CONFIRMED" && conf >= 0.8) ready = true;
+      if (!heuristic && st === "LIKELY" && conf >= 0.82 && hasFlow) ready = true;
+      if (!heuristic && conf >= 0.9 && hasFlow) ready = true;
+      // Hard block: heuristic security/DOM/percent never auto prompt-ready
+      if (heuristic && /security|innerhtml|dom html|percent|xss/i.test((p.category || "") + " " + (p.description || ""))) {
+        ready = false;
+        p._ci_suppress_prompt = true;
+      }
       if (ready) {
         p._ci_prompt_ready = true;
         actionable.push(p);
