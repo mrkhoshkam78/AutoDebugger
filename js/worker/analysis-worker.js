@@ -19,7 +19,8 @@ try {
     BASE + "../stage2-core.js",
     BASE + "../stage3-core.js",
     BASE + "../results-store.js",
-    BASE + "../engines/debug-engine.js"
+    BASE + "../engines/debug-engine.js",
+    BASE + "../central-intelligence.js"
   );
 } catch (e) {
   self.postMessage({ type: "error", message: "Worker import failed: " + (e && e.message) });
@@ -241,6 +242,19 @@ self.onmessage = function (ev) {
       }
       if (plan && ADSupervisor.attachPlanMeta) {
         ADSupervisor.attachPlanMeta(result, plan);
+      }
+    }
+
+    // Central Intelligence — meta-review after engines + correlation
+    checkControl();
+    progress("intelligence", 94, "Central Intelligence review");
+    if (typeof ADCentralIntelligence !== "undefined" && ADCentralIntelligence.review) {
+      try {
+        result = ADCentralIntelligence.review(result, { category: category, level: level });
+        var ci = result.centralIntelligence || {};
+        progress("intelligence", 96, "CI: " + (ci.outputCount || 0) + " kept · " + (ci.suppressed || 0) + " suppressed · " + (ci.actionableCount || 0) + " prompt-ready");
+      } catch (ciErr) {
+        result.centralIntelligence = { error: String(ciErr && ciErr.message || ciErr), version: "V9-CI" };
       }
     }
 
