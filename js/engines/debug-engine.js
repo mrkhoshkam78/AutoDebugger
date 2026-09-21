@@ -890,19 +890,21 @@ jsDotSpace: function (s) {
                 metadata: { flow: f0.flowPath || [] }
               });
           } else {
-            self._add("high", fname, line, "security", "innerHTML assignment",
-              "XSS risk if the assigned value is untrusted.",
-              "Prefer textContent or sanitize HTML.",
+            // Sink without proven source→sink data-flow: hygiene signal only, NOT confirmed XSS
+            self._add("medium", fname, line, "security", "innerHTML assignment",
+              "XSS risk only if the assigned value is untrusted. No proven source→sink path here.",
+              "Prefer textContent for plain text, or sanitize HTML if markup is required.",
               "innerHTML =",
-              "Prefer safer APIs.", s,
+              "Prefer safer APIs when data may be untrusted.", s,
               {
-                confidence: 0.7,
-                status: "LIKELY",
+                confidence: 0.48,
+                status: "POSSIBLE",
                 simpleId: "sec_innerhtml",
-                evidence: [{ file: fname, line: line, type: "ast", snippet: "innerHTML =", explanation: "Sink present; flow not fully proven" }],
-                root_cause: "Unsafe DOM write API",
+                heuristicOnly: true,
+                evidence: [{ file: fname, line: line, type: "ast", snippet: "innerHTML =", explanation: "Sink present; flow not fully proven — not a confirmed XSS" }],
+                root_cause: "DOM write via innerHTML without proven tainted source",
                 symptom: "innerHTML assignment",
-                impact: "Potential XSS"
+                impact: "Potential XSS only if value is attacker-controlled"
               });
           }
         });
@@ -1382,21 +1384,37 @@ jsDotSpace: function (s) {
         });
       },
       secSourceSink: function (s) {
+        // Co-occurrence of source-like and sink-like tokens is NOT proven data-flow.
+        // Only emit a low-confidence POSSIBLE hygiene note; real XSS comes from secInnerHTML with flows.
         self._eachFile(["javascript", "typescript"], function (fname, content) {
           if (typeof ADStandards !== "undefined" && ADStandards.shouldSkipSecurityKeywordScan(fname)) return;
           var code = stripNoise(content);
-          var hasSource = /(location\.hash|location\.search|document\.URL|document\.referrer|\.value\b|getElementById\([^)]+\)\.value)/i.test(code);
-          var hasSink = /(innerHTML|outerHTML|insertAdjacentHTML|document\.write)\s*=/i.test(code) || /(innerHTML|insertAdjacentHTML)\s*\(/i.test(code);
-          if (hasSource && hasSink) {
-            self._add("critical", fname, 1, "security", "Possible user input to HTML sink",
-              "SOURCE (URL/input) may reach SINK (HTML write) without clear sanitization.",
-              "Validate and encode before DOM write.",
-              "source+sink patterns in same file", "Sanitize between source and sink.", s,
-              { confidence: 0.7, status: "LIKELY", simpleId: "sec_innerhtml",
-                evidence: "Source: location/input → Sink: innerHTML/write → Impact: XSS" });
+          var hasSource = /(location\.hash|location\.search|document\.URL|document\.referrer)/i.test(code);
+          var hasInput = /getElementById\([^)]+\)\.value|\.value\b/i.test(code);
+          var hasSink = /(innerHTML|outerHTML|insertAdjacentHTML|document\.write)\s*=/i.test(code);
+          if (!(hasSink && (hasSource || hasInput))) return;
+          // Prefer proven data-flow from codeModel when available
+          var proven = false;
+          if (self.codeModel && self.codeModel.dataFlows) {
+            proven = self.codeModel.dataFlows.some(function (f) {
+              return f.file === fname && f.sink && /innerHTML|outerHTML|insertAdjacentHTML/i.test(f.sink.kind || "") && !f.weak;
+            });
           }
+          if (proven) return; // secInnerHTML / flow strategies already cover confirmed path
+          self._add("low", fname, 1, "security", "Possible user input to HTML sink",
+            "File contains both input/URL reads and HTML writes, but no proven source→sink path.",
+            "Confirm data-flow before treating as XSS; prefer textContent or sanitization if flow exists.",
+            "source+sink co-occurrence (unproven)",
+            "Verify with data-flow; do not assume XSS from co-occurrence alone.", s,
+            { confidence: 0.4, status: "POSSIBLE", simpleId: "sec_source_sink_cooccur",
+              heuristicOnly: true,
+              evidence: [{ file: fname, line: 1, type: "static", snippet: "source+sink patterns in same file", explanation: "Co-occurrence only — not a confirmed data-flow XSS" }],
+              root_cause: "Unproven co-occurrence of input/URL read and HTML write in same file",
+              symptom: "Possible user input near HTML sink (needs flow confirmation)",
+              impact: "Unknown until data-flow is proven" });
         });
       },
+
       secPhpSql: function (s) {
         self._eachFile(["php"], function (fname, content) {
           var code = stripNoise(content);
@@ -1754,35 +1772,52 @@ jsDotSpace: function (s) {
       },
       mathPercent: function (s) {
         self._eachFile(["javascript", "typescript"], function (fname, content) {
-          var code = stripForMath(content);
-          // Pattern: amount * percent without /100  OR  amount * (n) where n looks like whole percent
-          // e.g. price * 20  when context has percent/% — weak signal, require both * and percent keyword nearby
           var lines = content.split("\n");
           for (var i = 0; i < lines.length; i++) {
             var raw = lines[i];
             var line = stripForMath(raw);
+            // --- SAFE DISPLAY / UI SCALE PATTERNS (NOT BUGS) ---
+            // progress 0..1 → percent: Math.round(p * 100) + '%'
+            if (/Math\.round\s*\(\s*\w+\s*\*\s*100\s*\)/.test(line)) continue;
+            if (/\*\s*100\s*\)?\s*\+?\s*['"`]?%/.test(line)) continue;
+            if (/style\.width\s*=.*\*\s*100/.test(line)) continue;
+            if (/progressFill|progressBar|percent|٪|%'|"%"/.test(raw) && /\*\s*100/.test(line)) continue;
+            // slider UI: (param ?? 0.7) * 100 for 0..100 display
+            if (/\(\s*\w+(?:\.\w+)?\s*\?\?[^)]+\)\s*\*\s*100/.test(line)) continue;
+            if (/_slider\s*\(/.test(raw) && /\*\s*100/.test(line)) continue;
+            if (/intensity|amount|mix|humanize|retune|feedback|roomSize/.test(raw) && /\*\s*100/.test(line)) continue;
+            // seek bar: (time/duration)*100
+            if (/duration|currentTime|seek/.test(raw) && /\*\s*100/.test(line)) continue;
+            // confidence display: confidence * 100
+            if (/confidence|conf\b/.test(raw) && /\*\s*100/.test(line)) continue;
+
             if (!/percent|%/i.test(raw) && !/\*\s*(?:0\.\d+|\d{1,3})\s*[;,)\]]/.test(line)) continue;
-            // Classic bug: x * percent where percent is 20 meaning 20% but no /100
+            // Classic financial bug: price * 20 when "20" means 20% without /100
             var m = line.match(/(\w+|\d+(?:\.\d+)?)\s*\*\s*(\d{1,3}(?:\.\d+)?)\s*(?:;|,|\)|$)/);
             if (!m) continue;
             var pctVal = parseFloat(m[2]);
-            if (!(pctVal > 1 && pctVal <= 100)) continue; // only whole-number percent style
-            if (!/percent|%/i.test(raw) && !/percent|%/i.test(lines[Math.max(0,i-1)] || "") && !/percent|%/i.test(lines[Math.min(lines.length-1,i+1)] || "")) continue;
-            // Independent: if treated as whole percent, amount*pct/100; if as fraction already >1 wrong
+            if (!(pctVal > 1 && pctVal <= 100)) continue;
+            // Require explicit percent/discount/tax/fee context (not just any * N)
+            var ctxWindow = (lines[Math.max(0, i - 2)] || "") + " " + raw + " " + (lines[Math.min(lines.length - 1, i + 2)] || "");
+            if (!/percent|discount|tax|fee|interest|margin|ratio|٪/i.test(ctxWindow)) continue;
+            // Skip if /100 already on same or nearby expression
+            if (/\/\s*100/.test(line) || /\/\s*100/.test(ctxWindow)) continue;
+
             var asWhole = pctVal / 100;
             self._add("medium", fname, i + 1, "math", "Percentage scale may be wrong (× percent without ÷100)",
-              "Whole-number percent (e.g. 20) multiplied without /100 inflates the result by 100×.",
-              "Use amount * (percent / 100) or amount * fraction.",
+              "Whole-number percent (e.g. 20) multiplied without /100 may inflate the result by 100× in financial formulas.",
+              "Use amount * (percent / 100) when percent is whole (0–100).",
               m[0].trim(),
-              "Normalize percent convention: whole → /100, fraction → direct multiply.", s,
-              { confidence: 0.68, status: "LIKELY", simpleId: "math_percent",
+              "Confirm convention: whole percent → divide by 100; fraction → multiply directly.", s,
+              { confidence: 0.62, status: "POSSIBLE", simpleId: "math_percent",
                 evidence: [
-                  { file: fname, line: i + 1, type: "ast", snippet: m[0].trim(), explanation: "Multiplication by whole-looking percent without /100" },
-                  { file: fname, line: i + 1, type: "validation", snippet: "if " + pctVal + " means " + pctVal + "% → factor " + asWhole, explanation: "Independent convention check" }
+                  { file: fname, line: i + 1, type: "ast", snippet: m[0].trim(), explanation: "Multiplication by whole-looking percent without /100 in percent-related context" },
+                  { file: fname, line: i + 1, type: "validation", snippet: "if " + pctVal + " means " + pctVal + "% → factor " + asWhole, explanation: "Independent convention check — confirm before treating as bug" }
                 ],
-                root_cause: "Percent convention mismatch (whole number vs fraction)",
-                symptom: "Scaled value may be 100× too large",
-                impact: "Wrong totals, discounts, or financial results" });
+                root_cause: "Possible percent convention mismatch (whole number vs fraction)",
+                symptom: "Scaled value may be wrong if convention is whole-percent",
+                impact: "Wrong totals only if whole-percent convention was intended",
+                heuristicOnly: true });
             break;
           }
         });
