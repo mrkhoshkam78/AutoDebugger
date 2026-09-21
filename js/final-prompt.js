@@ -472,7 +472,15 @@
 
   function generate(findings, meta) {
     meta = meta || {};
-    var valid = sortFindings(findings, meta);
+    // Prefer CI-marked prompt-ready set when provided via meta
+    var source = findings || [];
+    if (meta.promptReadyFindings && meta.promptReadyFindings.length) {
+      source = meta.promptReadyFindings;
+    } else {
+      var ready = source.filter(function (p) { return p && p._ci_prompt_ready === true; });
+      if (ready.length) source = ready;
+    }
+    var valid = sortFindings(source, meta);
 
     if (!valid.length) {
       return {
