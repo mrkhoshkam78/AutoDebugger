@@ -688,6 +688,12 @@
     var result = engine.run();
     setStageProgress(75, "security", "Security analysis · " + (result.strategies_count || 0) + " strategies");
     setStageProgress(90, "merge", "Merging findings");
+    if (typeof ADCentralIntelligence !== "undefined" && ADCentralIntelligence.review) {
+      try {
+        result = ADCentralIntelligence.review(result, { category: category, level: level });
+      } catch (e) {}
+    }
+    setStageProgress(95, "intelligence", "Central Intelligence");
     return result;
   }
 
@@ -800,7 +806,11 @@
 
   function updateFinalPrompt(meta) {
     if (!finalPromptSection || !finalPromptBox || !globalThis.ADFinalPrompt) return;
-    var gen = ADFinalPrompt.generate(allProblems, meta || {});
+    meta = meta || {};
+    if (lastResult && lastResult.promptReadyFindings) {
+      meta.promptReadyFindings = lastResult.promptReadyFindings;
+    }
+    var gen = ADFinalPrompt.generate(allProblems, meta);
     finalPromptSection.hidden = false;
     finalPromptBox.textContent = gen.text;
     finalPromptBox.dataset.empty = gen.empty ? "1" : "0";
