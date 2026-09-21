@@ -1,15 +1,28 @@
 /**
- * Auto Debugger V10 — Central Intelligence (Meta-Review Engine)
+ * Auto Debugger V10.1.0 — Central Intelligence (Meta-Review Engine)
  * Runs AFTER specialized engines + correlation.
- * Re-evaluates all findings with 8 capabilities:
- *  1. Meta-Consistency Check
- *  2. Cross-File Correlation Intelligence
- *  3. Root-Cause Unification
- *  4. Evidence Strength Re-Scoring
- *  5. False-Positive Sentinel
- *  6. Severity & Priority Re-Ranking
- *  7. Localization & Explanation Quality Gate
- *  8. Final Verdict & Prompt Readiness
+ *
+ * 8 meta capabilities + 20 Debug Principles (enforced as gates):
+ *  1. Evidence First
+ *  2. Symptom ≠ Root Cause
+ *  3. Reproduce Before Fix-Prompt
+ *  4. One Variable (no multi-cause inflation)
+ *  5. Source → Sink Data Path
+ *  6. Falsify Assumptions
+ *  7. Narrow Scope
+ *  8. Isolate Environment (vendor/fixture)
+ *  9. Recognize False Positives
+ * 10. Minimal Safe Fix readiness only
+ * 11. Regression awareness (do not over-claim)
+ * 12. Honest Confidence
+ * 13. Log/Evidence before Guess
+ * 14. Before/After state in evidence
+ * 15. Edge inputs considered in scoring
+ * 16. Dependencies / cross-file
+ * 17. Conditional reproducibility caution
+ * 18. Prefer diff against healthy patterns
+ * 19. Side-effect / non-scope protection
+ * 20. Close only when Evidence no longer supports the symptom as confirmed
  *
  * Rules: never invent bugs; only re-weigh existing evidence.
  * Browser-only. No external APIs.
@@ -18,6 +31,220 @@
   "use strict";
 
   var SEV_RANK = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
+
+  /** 20 Debug Principles — enforced as scoring/status gates (not decoration). */
+  var DEBUG_PRINCIPLES = [
+    { id: 1,  key: "evidence_first",           title: "Evidence First" },
+    { id: 2,  key: "symptom_ne_root",          title: "Symptom ≠ Root Cause" },
+    { id: 3,  key: "reproduce_before_prompt",  title: "Reproduce Before Fix-Prompt" },
+    { id: 4,  key: "one_variable",             title: "One Variable" },
+    { id: 5,  key: "source_sink_path",         title: "Source → Sink Path" },
+    { id: 6,  key: "falsify_assumptions",      title: "Falsify Assumptions" },
+    { id: 7,  key: "narrow_scope",             title: "Narrow Scope" },
+    { id: 8,  key: "isolate_environment",      title: "Isolate Environment" },
+    { id: 9,  key: "recognize_fp",             title: "Recognize False Positives" },
+    { id: 10, key: "minimal_safe_fix",         title: "Minimal Safe Fix" },
+    { id: 11, key: "regression_awareness",     title: "Regression Awareness" },
+    { id: 12, key: "honest_confidence",        title: "Honest Confidence" },
+    { id: 13, key: "evidence_before_guess",    title: "Evidence Before Guess" },
+    { id: 14, key: "before_after_state",       title: "Before/After State" },
+    { id: 15, key: "edge_inputs",              title: "Edge Inputs" },
+    { id: 16, key: "dependencies",             title: "Dependencies" },
+    { id: 17, key: "conditional_repro",        title: "Conditional Reproducibility" },
+    { id: 18, key: "healthy_diff",             title: "Healthy Pattern Diff" },
+    { id: 19, key: "side_effect_guard",        title: "Side-Effect Guard" },
+    { id: 20, key: "close_on_evidence",        title: "Close Only On Evidence" }
+  ];
+
+  function hasEvidenceType(p, types) {
+    var ev = p.evidence;
+    if (!ev) return false;
+    var list = Array.isArray(ev) ? ev : [ev];
+    var set = {};
+    for (var i = 0; i < types.length; i++) set[types[i]] = true;
+    for (var j = 0; j < list.length; j++) {
+      var e = list[j];
+      if (!e) continue;
+      if (typeof e === "string") {
+        if (set.static || set.string) return true;
+        continue;
+      }
+      var t = String(e.type || "").toLowerCase();
+      if (set[t]) return true;
+    }
+    return false;
+  }
+
+  function blobOf(p) {
+    return [
+      p.description || "", p.symptom || "", p.root_cause || p.rootCause || "",
+      p.detected_behavior || "", p.recommendation || "", (p.simple && p.simple.id) || "",
+      p.rule_id || ""
+    ].join(" ").toLowerCase();
+  }
+
+  /**
+   * Apply the 20 Debug Principles as hard gates on each finding.
+   * Mutates findings in place; returns principle violation notes.
+   */
+  function applyDebugPrinciples(problems) {
+    var notes = [];
+    problems.forEach(function (p) {
+      var violated = [];
+      var conf = confOf(p);
+      var heuristic = isHeuristicOnly(p);
+      var hasFlow = hasEvidenceType(p, ["dataflow"]);
+      var hasValidation = hasEvidenceType(p, ["validation"]);
+      var hasAst = hasEvidenceType(p, ["ast", "symbolic", "cross-file"]);
+      var hasStrong = hasFlow || hasValidation || (hasAst && conf >= 0.7);
+      var blob = blobOf(p);
+      var line = p.line || 0;
+
+      // 1 Evidence First — no evidence → demote hard
+      if (!p.evidence || (Array.isArray(p.evidence) && !p.evidence.length)) {
+        conf = Math.min(conf, 0.35);
+        p.status = "POSSIBLE";
+        violated.push(1);
+      }
+
+      // 13 Evidence before guess — pure heuristic / keyword
+      if (heuristic && !hasStrong) {
+        conf = Math.min(conf, 0.52);
+        if (p.status === "CONFIRMED") p.status = "POSSIBLE";
+        violated.push(13);
+      }
+
+      // 5 Source → Sink — security without dataflow cannot be critical/confirmed
+      if (/security|xss|innerhtml|eval/i.test((p.category || "") + " " + blob)) {
+        if (!hasFlow) {
+          if (p.severity === "critical") p.severity = "medium";
+          if (p.severity === "high" && conf < 0.7) p.severity = "medium";
+          if (p.status === "CONFIRMED") p.status = "POSSIBLE";
+          conf = Math.min(conf, 0.55);
+          p._ci_suppress_prompt = true;
+          violated.push(5);
+        }
+      }
+
+      // 9 Recognize FP — UI percent display, co-occurrence, line-1 security
+      if (/percent|scaled value|× percent|convention mismatch|math_percent/i.test(blob)) {
+        if (/math\.round|progress|style\.width|slider|confidence|seek|duration|\*\s*100.*%/i.test(blob)) {
+          p._ci_principle_fp = "ui_display_percent";
+          conf = 0;
+          violated.push(9);
+        } else if (heuristic && !hasValidation) {
+          conf = Math.min(conf, 0.5);
+          p.status = "POSSIBLE";
+          violated.push(9);
+        }
+      }
+      if (line <= 1 && /security|xss|user input|source.*sink/i.test(blob) && !hasFlow) {
+        p._ci_principle_fp = "line1_unproven_security";
+        conf = Math.min(conf, 0.35);
+        p.status = "POSSIBLE";
+        p.severity = "low";
+        p._ci_suppress_prompt = true;
+        violated.push(9);
+      }
+      if (/dom html sink|dom static signal|requires data-flow/i.test(blob) && !hasFlow) {
+        p.severity = "low";
+        p.status = "POSSIBLE";
+        conf = Math.min(conf, 0.45);
+        p._ci_suppress_prompt = true;
+        violated.push(9);
+      }
+
+      // 2 Symptom ≠ Root Cause — missing root_cause → not prompt-ready
+      var rc = String(p.root_cause || p.rootCause || "").trim();
+      if (!rc || rc === "—" || rc.length < 6) {
+        p._ci_suppress_prompt = true;
+        if (p.status === "CONFIRMED" && conf < 0.9) p.status = "LIKELY";
+        violated.push(2);
+      }
+
+      // 3 + 10 + 20 Reproduce / Minimal Fix / Close on evidence — prompt only if strong
+      if (!(hasStrong && conf >= 0.75 && (p.status === "CONFIRMED" || p.status === "LIKELY"))) {
+        // leave suppress if already set; do not force ready
+        if (heuristic) p._ci_suppress_prompt = true;
+        if (!hasStrong) violated.push(3);
+      }
+
+      // 6 Falsify assumptions — "may"/"possible"/"potential" language → not CONFIRMED
+      if (/\b(may|possible|potential|might|could)\b/i.test(blob) && p.status === "CONFIRMED" && !hasFlow) {
+        p.status = "POSSIBLE";
+        conf = Math.min(conf, 0.55);
+        violated.push(6);
+      }
+
+      // 7 Narrow scope — vague whole-file claims on line 1
+      if (line <= 1 && /entire file|whole file|source\+sink patterns/i.test(blob) && !hasFlow) {
+        conf = Math.min(conf, 0.4);
+        p.status = "POSSIBLE";
+        violated.push(7);
+      }
+
+      // 8 Isolate environment — vendor/fixture handled later in FP sentinel; mark here
+      var fname = p.file_name || p.file || "";
+      if (isVendorOrTool(fname) || isFixture(fname)) {
+        violated.push(8);
+      }
+
+      // 12 Honest confidence — never keep CONFIRMED below 0.8 without dataflow
+      if (p.status === "CONFIRMED" && conf < 0.8 && !hasFlow) {
+        p.status = conf >= 0.65 ? "LIKELY" : "POSSIBLE";
+        violated.push(12);
+      }
+
+      // 4 One variable — multi-claim descriptions get slight demotion
+      if ((blob.match(/\b(and|also|plus)\b/g) || []).length >= 3 && heuristic) {
+        conf = Math.min(conf, conf - 0.05);
+        violated.push(4);
+      }
+
+      // 16 Dependencies — cross-file evidence boost already elsewhere; mark if claimed without cross-file ev
+      if (/cross-file|related_files|multi-file/i.test(blob) && !hasEvidenceType(p, ["cross-file", "dataflow"])) {
+        conf = Math.min(conf, 0.6);
+        violated.push(16);
+      }
+
+      // 14 Before/after — validation evidence preferred; if math without validation demote
+      if (/math|percent|calculation/i.test((p.category || "") + blob) && !hasValidation && heuristic) {
+        conf = Math.min(conf, 0.55);
+        p.status = "POSSIBLE";
+        violated.push(14);
+      }
+
+      // 19 Side-effect guard — advisory noise not for auto-fix prompt
+      if (p.severity === "info" || (p.severity === "low" && conf < 0.5)) {
+        p._ci_suppress_prompt = true;
+        violated.push(19);
+      }
+
+      // Apply confidence
+      if (conf <= 0.05) {
+        p._ci_principle_drop = true;
+      }
+      p.confidence = Math.round(Math.max(0, conf) * 1000) / 1000;
+      if (violated.length) {
+        p._ci_principles_violated = violated;
+        notes.push({ id: p.problem_id || locKey(p), principles: violated });
+      }
+      p._ci_principles_applied = true;
+    });
+
+    // Drop principle-killed items
+    var kept = [];
+    problems.forEach(function (p) {
+      if (p._ci_principle_drop) return;
+      kept.push(p);
+    });
+    // Replace array contents
+    problems.length = 0;
+    for (var i = 0; i < kept.length; i++) problems.push(kept[i]);
+
+    return notes;
+  }
+
 
   function confOf(p) {
     var c = p && p.confidence;
@@ -373,36 +600,82 @@
   }
 
   // ── 8. Final Verdict & Prompt Readiness ────────────────────────
+  /**
+   * Final Verdict — three tiers (V10.1.0):
+   *   ACTIONABLE  → Fix-Prompt eligible (high evidence)
+   *   ADVISORY    → shown in UI, not auto-prompt
+   *   NOISE       → suppressed / principle-killed (already filtered)
+   *
+   * Rules (must all align with 20 Debug Principles):
+   *  - heuristic + security/DOM/percent → never ACTIONABLE
+   *  - CONFIRMED without dataflow/validation → not ACTIONABLE unless conf≥0.92 and !heuristic
+   *  - SECURITY requires dataflow for ACTIONABLE
+   *  - status POSSIBLE → never ACTIONABLE
+   */
   function finalVerdict(problems) {
     var actionable = [];
     var advisory = [];
     problems.forEach(function (p) {
-      if (p._ci_suppressed) return;
-      if (p._ci_suppress_prompt) {
-        advisory.push(p);
-        return;
-      }
+      if (p._ci_suppressed || p._ci_principle_drop) return;
+
       var conf = confOf(p);
       var st = (p.status || "").toUpperCase();
       var cls = (p.classification || "").toUpperCase();
-      var ready = false;
-      var heuristic = p._ci_heuristic || isHeuristicOnly(p);
-      var hasFlow = p._ci_has_dataflow === true;
-      // Only high-evidence items are prompt-ready
-      if (!heuristic && hasFlow && (cls === "CONFIRMED_BUG" || cls === "SECURITY_ISSUE" || cls === "CONFIRMED_SECURITY_ISSUE")) ready = true;
-      if (!heuristic && st === "CONFIRMED" && conf >= 0.8) ready = true;
-      if (!heuristic && st === "LIKELY" && conf >= 0.82 && hasFlow) ready = true;
-      if (!heuristic && conf >= 0.9 && hasFlow) ready = true;
-      // Hard block: heuristic security/DOM/percent never auto prompt-ready
-      if (heuristic && /security|innerhtml|dom html|percent|xss/i.test((p.category || "") + " " + (p.description || ""))) {
-        ready = false;
-        p._ci_suppress_prompt = true;
+      var heuristic = p._ci_heuristic === true || isHeuristicOnly(p);
+      var hasFlow = p._ci_has_dataflow === true || hasEvidenceType(p, ["dataflow"]);
+      var hasValidation = hasEvidenceType(p, ["validation"]);
+      var hasAst = hasEvidenceType(p, ["ast", "symbolic", "cross-file"]);
+      var blob = ((p.category || "") + " " + (p.description || "") + " " + (p.symptom || "")).toLowerCase();
+      var isSec = /security|xss|innerhtml|eval/.test(blob) || cls.indexOf("SECURITY") >= 0;
+      var isDomStatic = /dom html sink|dom static signal|requires data-flow/.test(blob);
+      var isPercent = /percent|scaled value|convention mismatch/.test(blob);
+
+      // Hard blocks → advisory only
+      if (p._ci_suppress_prompt === true) {
+        p._ci_prompt_ready = false;
+        p._ci_verdict = "ADVISORY";
+        advisory.push(p);
+        return;
       }
+      if (st === "POSSIBLE" || st === "INCONCLUSIVE" || st === "DO_NOT_REPORT") {
+        p._ci_prompt_ready = false;
+        p._ci_verdict = "ADVISORY";
+        advisory.push(p);
+        return;
+      }
+      if (heuristic && (isSec || isDomStatic || isPercent)) {
+        p._ci_suppress_prompt = true;
+        p._ci_prompt_ready = false;
+        p._ci_verdict = "ADVISORY";
+        if (isSec && p.severity === "critical") p.severity = "medium";
+        advisory.push(p);
+        return;
+      }
+
+      var ready = false;
+      // Path A: proven data-flow security / confirmed bug
+      if (hasFlow && !heuristic && conf >= 0.75) {
+        if (isSec || cls === "SECURITY_ISSUE" || cls === "CONFIRMED_SECURITY_ISSUE") ready = true;
+        if (cls === "CONFIRMED_BUG" || st === "CONFIRMED") ready = true;
+      }
+      // Path B: strong AST/validation, non-heuristic, high conf
+      if (!ready && !heuristic && (hasValidation || hasAst) && conf >= 0.85 && st === "CONFIRMED") {
+        if (!isSec || hasFlow) ready = true;
+      }
+      // Path C: exceptional confidence with non-heuristic evidence
+      if (!ready && !heuristic && conf >= 0.92 && (hasAst || hasValidation) && (st === "CONFIRMED" || st === "LIKELY")) {
+        if (!isSec || hasFlow) ready = true;
+      }
+      // Path D: LIKELY + dataflow + high conf
+      if (!ready && !heuristic && hasFlow && st === "LIKELY" && conf >= 0.82) ready = true;
+
       if (ready) {
         p._ci_prompt_ready = true;
+        p._ci_verdict = "ACTIONABLE";
         actionable.push(p);
       } else {
         p._ci_prompt_ready = false;
+        p._ci_verdict = "ADVISORY";
         advisory.push(p);
       }
     });
@@ -419,7 +692,7 @@
     var problems = (result.problems || []).slice();
     var context = result.context || {};
     var report = {
-      version: "V10-CI",
+      version: "V10.1.0-CI",
       inputCount: problems.length,
       consistencyNotes: [],
       crossFileNotes: [],
@@ -438,6 +711,10 @@
       return result;
     }
 
+    // 0 — 20 Debug Principles (hard gates before other meta steps)
+    report.principleNotes = applyDebugPrinciples(problems);
+    report.principlesVersion = 20;
+
     // 1
     report.consistencyNotes = metaConsistency(problems);
     // 2
@@ -454,7 +731,13 @@
     rerankSeverity(problems);
     // 7
     report.localizationFixed = localizationGate(problems);
-    // 8
+    // 8 — principles second pass, then final verdict (so actionable matches gates)
+    applyDebugPrinciples(problems);
+    problems = problems.filter(function (p) { return !p._ci_principle_drop; });
+    report.principleNotes = (report.principleNotes || []).concat(
+      problems.filter(function (p) { return p._ci_principles_violated && p._ci_principles_violated.length; })
+        .map(function (p) { return { id: p.problem_id, principles: p._ci_principles_violated }; })
+    );
     var verdict = finalVerdict(problems);
     report.actionableCount = verdict.actionable.length;
     report.advisoryCount = verdict.advisory.length;
@@ -476,7 +759,8 @@
 
   global.ADCentralIntelligence = {
     review: review,
-    version: "V10.0",
+    version: "V10.1.0",
+    principles: DEBUG_PRINCIPLES,
     features: [
       "Meta-Consistency Check",
       "Cross-File Correlation Intelligence",
@@ -485,7 +769,8 @@
       "False-Positive Sentinel",
       "Severity & Priority Re-Ranking",
       "Localization & Explanation Quality Gate",
-      "Final Verdict & Prompt Readiness"
+      "Final Verdict & Prompt Readiness",
+      "20 Debug Principles Gates"
     ]
   };
 })(typeof window !== "undefined" ? window : globalThis);

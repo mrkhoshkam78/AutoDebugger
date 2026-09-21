@@ -1,5 +1,5 @@
 /**
- * Final Prompt Generator — Auto Debugger V10.0
+ * Final Prompt Generator — Auto Debugger V10.1.0
  * Evidence-Driven Prompt Engineering Engine.
  * Pipeline: Valid Findings → Group by Root Cause → Rank → Build Context → Adaptive Sections → Quality Check → Prompt
  * Language-aware (Persian / English). Max soft ceiling ~2000 lines; prefer short for simple cases.
@@ -20,22 +20,40 @@
   function isValidFinding(p, opts) {
     if (!p) return false;
     opts = opts || {};
+    // Central Intelligence gates (V10.1.0)
+    if (p._ci_suppress_prompt === true) return false;
+    if (p._ci_suppressed === true) return false;
+    if (p._ci_prompt_ready === false && opts.forceAll !== true) return false;
+    if (p._ci_heuristic === true && (p.confidence || 0) < 0.8) return false;
+
     var cls = (p.classification || "").toUpperCase();
     var st = (p.status || "").toUpperCase();
     if (st === "NOT_APPLICABLE" || st === "SKIPPED" || st === "DO_NOT_REPORT") return false;
+    var conf = p.confidence || 0;
+    if (conf > 1) conf = conf / 100;
+
     var allowWeak = opts.includePossible === true;
-    if (cls === "CONFIRMED_BUG" || cls === "SECURITY_ISSUE" || cls === "PERFORMANCE_ISSUE" ||
-        cls === "CONFIRMED_SECURITY_ISSUE" || cls === "CONFIRMED_PERFORMANCE_ISSUE") return true;
+
+    // Prefer explicit CI prompt-ready
+    if (p._ci_prompt_ready === true && conf >= 0.55) return true;
+
+    // Classification alone is not enough for security without readiness
+    if (cls === "SECURITY_ISSUE" || cls === "CONFIRMED_SECURITY_ISSUE") {
+      if (p._ci_has_dataflow === false || p._ci_heuristic === true) return allowWeak && conf >= 0.7;
+      return conf >= 0.7;
+    }
+    if (cls === "CONFIRMED_BUG" || cls === "PERFORMANCE_ISSUE" || cls === "CONFIRMED_PERFORMANCE_ISSUE") {
+      return conf >= 0.65 && st !== "POSSIBLE";
+    }
     if (allowWeak && (cls === "POSSIBLE_ISSUE" || cls === "CODE_SMELL" || st === "INCONCLUSIVE" || st === "POSSIBLE")) {
-      return (p.confidence || 0) >= 0.55;
+      return conf >= 0.6;
     }
     if (!cls) {
-      if (st === "POSSIBLE" && (p.confidence || 0) < 0.55) return false;
-      if ((p.confidence || 0) < 0.4) return false;
-      return st === "CONFIRMED" || st === "LIKELY" || (p.confidence || 0) >= 0.7;
+      if (st === "POSSIBLE") return false;
+      if (conf < 0.55) return false;
+      return st === "CONFIRMED" || st === "LIKELY" || conf >= 0.75;
     }
-    // High-confidence actionable without strict classification
-    if ((p.confidence || 0) >= 0.75 && (st === "CONFIRMED" || st === "LIKELY")) return true;
+    if (conf >= 0.8 && (st === "CONFIRMED" || st === "LIKELY")) return true;
     return false;
   }
 
@@ -135,7 +153,7 @@
     lines.push("");
 
     lines.push("[PROJECT CONTEXT]");
-    lines.push("A local browser-only debugger (Auto Debugger V10) analyzed the project.");
+    lines.push("A local browser-only debugger (Auto Debugger V10.1.0) analyzed the project.");
     lines.push("Files involved: " + (fileList.join(", ") || "n/a"));
     if (meta.category) lines.push("Category focus: " + meta.category);
     if (meta.level) lines.push("Analysis level: " + meta.level);
@@ -300,7 +318,7 @@
     lines.push("");
 
     lines.push("[PROJECT CONTEXT]");
-    lines.push("یک دیباگر محلی و مرورگرمحور (Auto Debugger V10) پروژه را تحلیل کرده است.");
+    lines.push("یک دیباگر محلی و مرورگرمحور (Auto Debugger V10.1.0) پروژه را تحلیل کرده است.");
     lines.push("فایل‌های درگیر: " + (fileList.join("، ") || "نامشخص"));
     if (meta.category) lines.push("تمرکز دسته: " + meta.category);
     if (meta.level) lines.push("سطح تحلیل: " + meta.level);
@@ -523,6 +541,6 @@
     generate: generate,
     isValidFinding: isValidFinding,
     groupByRootCause: groupByRootCause,
-    version: "V10.0"
+    version: "V10.1.0"
   };
 })(typeof window !== "undefined" ? window : globalThis);

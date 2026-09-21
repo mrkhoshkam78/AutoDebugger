@@ -1,5 +1,5 @@
 /**
- * Auto Debugger V6 Stage-1 Core
+ * Auto Debugger V10.1.0 Stage-1 Core
  * Deep Data Flow · CFG · Limited Symbolic · Module Graph
  * Browser-only. Lazy/targeted. No external deps.
  */
@@ -675,6 +675,7 @@
   }
 
   global.ADCore = {
+    version: "V10.1.0",
     DEFAULT_MAX_HOPS: DEFAULT_MAX_HOPS,
     buildModuleGraph: buildModuleGraph,
     buildCFG: buildCFG,
