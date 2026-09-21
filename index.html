@@ -103,8 +103,13 @@
           <span class="muted" data-i18n="uploadHint">ZIP or source files · client-side only</span>
         </h2>
         <div class="upload-zone" id="uploadZone" role="button" tabindex="0" aria-label="Upload zone">
-          <div class="upload-icon">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+          <div class="illust upload-icon" aria-hidden="true">
+            <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="14" y="22" width="52" height="40" rx="8" stroke="currentColor" stroke-width="2" opacity="0.35"/>
+              <path d="M28 38h24M28 46h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+              <circle cx="56" cy="28" r="14" fill="var(--accent-soft, #eef2ff)" stroke="currentColor" stroke-width="2"/>
+              <path d="M56 22v12M50 28h12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+            </svg>
           </div>
           <h3 data-i18n="dropTitle">Drop project here</h3>
           <p data-i18n="dropSub">.js · .ts · .py · .html · .css · .json · .php · .zip</p>
@@ -118,6 +123,14 @@
 
       <!-- Config -->
       <section class="panel" aria-labelledby="configTitle">
+        <div class="illust" aria-hidden="true" style="margin-bottom:4px">
+          <svg viewBox="0 0 64 40" width="64" height="40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="4" y="10" width="56" height="20" rx="6" stroke="currentColor" stroke-width="1.6" opacity="0.25"/>
+            <circle cx="18" cy="20" r="5" fill="currentColor" opacity="0.35"/>
+            <circle cx="32" cy="20" r="5" fill="currentColor" opacity="0.2"/>
+            <circle cx="46" cy="20" r="5" fill="currentColor" opacity="0.15"/>
+          </svg>
+        </div>
         <h2 class="panel-title" id="configTitle" data-i18n="configTitle">Analysis configuration</h2>
         <div class="config-grid">
           <div class="field">
@@ -183,12 +196,17 @@
 
       <!-- Results: empty state is SIBLING (not child) so hide logic works -->
       <div class="results-empty panel" id="resultsEmpty">
-        <svg width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-          <rect x="10" y="14" width="44" height="36" rx="6" stroke="currentColor" stroke-width="2" opacity="0.4"/>
-          <path d="M20 28h24M20 36h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.35"/>
-          <circle cx="44" cy="40" r="10" stroke="currentColor" stroke-width="2" opacity="0.5"/>
-          <path d="M51 47l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
-        </svg>
+        <div class="illust" aria-hidden="true">
+          <svg viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="18" y="16" width="70" height="52" rx="8" stroke="currentColor" stroke-width="2" opacity="0.35"/>
+            <rect x="26" y="28" width="36" height="4" rx="2" fill="currentColor" opacity="0.2"/>
+            <rect x="26" y="38" width="48" height="4" rx="2" fill="currentColor" opacity="0.15"/>
+            <rect x="26" y="48" width="28" height="4" rx="2" fill="currentColor" opacity="0.12"/>
+            <circle cx="88" cy="62" r="18" stroke="currentColor" stroke-width="2.2" opacity="0.45"/>
+            <path d="M100 74l12 12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.45"/>
+            <path d="M82 62h12M88 56v12" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.35"/>
+          </svg>
+        </div>
         <p data-i18n="resultsEmpty">Upload a project and run analysis to see findings here.</p>
       </div>
 

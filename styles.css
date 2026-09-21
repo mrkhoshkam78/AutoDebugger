@@ -705,3 +705,166 @@ a:hover { text-decoration: underline; }
 
 /* Fix mode pills overflow on small screens */
 .workspace { overflow-x: hidden; }
+
+/* ═══ V10.2.1 Mobile / RTL responsive hard-fix ═══ */
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+.app-main {
+  width: 100%;
+  max-width: 100vw;
+}
+.topbar-actions {
+  max-width: 100%;
+}
+.theme-switch button {
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --sidebar-w: min(86vw, 300px);
+    --topbar-h: 52px;
+  }
+  body.has-sidebar {
+    display: block;
+    width: 100%;
+    overflow-x: hidden;
+  }
+  .app-sidebar {
+    position: fixed;
+    top: 0; bottom: 0;
+    left: 0; right: auto;
+    width: var(--sidebar-w);
+    max-width: 300px;
+    transform: translate3d(-105%, 0, 0);
+    transition: transform 0.22s ease;
+    z-index: 60;
+    box-shadow: var(--shadow);
+  }
+  html[dir="rtl"] .app-sidebar {
+    left: auto;
+    right: 0;
+    transform: translate3d(105%, 0, 0);
+  }
+  /* Higher specificity so open wins over RTL closed rule */
+  .app-sidebar.open,
+  html[dir="rtl"] .app-sidebar.open,
+  html[dir="ltr"] .app-sidebar.open {
+    transform: translate3d(0, 0, 0) !important;
+  }
+  .sidebar-overlay {
+    z-index: 55;
+  }
+  .app-main {
+    margin-inline-start: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: 100%;
+  }
+  .topbar {
+    padding: 0 10px;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  .topbar-title {
+    display: none; /* free space on narrow screens */
+  }
+  .topbar-actions {
+    flex: 1;
+    justify-content: flex-end;
+    gap: 4px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .topbar-actions::-webkit-scrollbar { display: none; }
+  .header-status {
+    display: none; /* show only on tablet+ */
+  }
+  .local-badge { font-size: 10px; padding: 3px 8px; }
+  .theme-switch { flex-shrink: 0; }
+  .theme-switch button { padding: 4px 8px; font-size: 10px; }
+  .btn.btn-ghost.btn-sm { padding: 6px 8px; font-size: 11px; min-height: 36px; }
+  .sidebar-open {
+    display: inline-flex !important;
+    flex-shrink: 0;
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .workspace {
+    padding: 12px !important;
+    width: 100%;
+    max-width: 100%;
+  }
+  .hero {
+    grid-template-columns: 1fr !important;
+    padding: 20px 16px !important;
+    gap: 12px;
+  }
+  .hero h1 { font-size: 1.25rem !important; }
+  .hero p { font-size: 13px; }
+  .hero-art { min-height: 100px; order: -1; }
+  .hero-art svg { width: min(100%, 200px); }
+  .panel { padding: 14px !important; margin-bottom: 12px; border-radius: 14px; }
+  .config-grid { grid-template-columns: 1fr !important; gap: 12px; }
+  .action-row {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 8px;
+  }
+  .action-row .btn,
+  .worker-controls {
+    width: 100%;
+  }
+  .worker-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+  }
+  .worker-controls .btn { width: 100%; min-height: 40px; }
+  .summary-cards {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px;
+  }
+  .filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filters select {
+    width: 100%;
+    min-height: 42px;
+  }
+  .problem-header {
+    padding: 12px;
+    gap: 8px;
+  }
+  .problem-title { font-size: 13px; }
+  .footer {
+    flex-direction: column;
+    text-align: center;
+    padding: 12px;
+  }
+  .upload-zone { padding: 24px 14px; }
+  .mode-pills { gap: 6px; }
+  .mode-pill { font-size: 11px; padding: 5px 10px; }
+}
+
+@media (max-width: 400px) {
+  .theme-switch button { padding: 4px 6px; }
+  .summary-cards { grid-template-columns: 1fr 1fr; }
+  .worker-controls { grid-template-columns: 1fr; }
+}
+
+/* Illustration helpers */
+.illust {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 8px;
+}
+.illust svg { width: 72px; height: 72px; }
+.upload-zone .illust svg { width: 56px; height: 56px; color: var(--accent); }
+.results-empty .illust svg { width: 88px; height: 88px; opacity: 0.85; }

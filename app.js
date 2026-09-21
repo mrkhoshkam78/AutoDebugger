@@ -88,11 +88,19 @@
   }
 
   function applyLanguage(lang) {
+    lang = lang === "fa" ? "fa" : "en";
     ADi18n.setLang(lang);
     var dir = lang === "fa" ? "rtl" : "ltr";
     document.documentElement.lang = lang;
     document.documentElement.dir = dir;
+    document.documentElement.setAttribute("lang", lang);
+    document.documentElement.setAttribute("dir", dir);
+    document.body.lang = lang;
+    document.body.dir = dir;
+    document.body.setAttribute("dir", dir);
     ADi18n.applyI18n(document);
+    // Translate fixed <option> labels that are not data-i18n (category/language/level)
+    localizeSelectOptions();
     updateLevelDesc();
     renderFileList();
     if (analysisState === "done" || allProblems.length) {
@@ -107,6 +115,57 @@
       var statusSpan = headerStatus.querySelector("span:not(.dot)");
       if (statusSpan) statusSpan.textContent = ADi18n.t("statusReady");
     }
+  }
+
+  function localizeSelectOptions() {
+    var fa = ADi18n.getLang() === "fa";
+    var catMap = {
+      "Test All": fa ? "همه دسته‌ها" : "Test All",
+      "Code / Logic": fa ? "کد / منطق" : "Code / Logic",
+      "Security": fa ? "امنیت" : "Security",
+      "Performance": fa ? "عملکرد" : "Performance",
+      "UI / UX": fa ? "رابط / تجربه" : "UI / UX",
+      "Mathematical / Calculations": fa ? "ریاضی / محاسبات" : "Mathematical / Calculations",
+      "Storage / Database": fa ? "ذخیره / دیتابیس" : "Storage / Database",
+      "Syntax": fa ? "نحو" : "Syntax"
+    };
+    if (categorySelect) {
+      Array.prototype.forEach.call(categorySelect.options, function (o) {
+        if (catMap[o.value]) o.textContent = catMap[o.value];
+      });
+    }
+    if (languageSelect) {
+      var langMap = {
+        auto: fa ? "خودکار" : "Auto",
+        javascript: "JavaScript",
+        typescript: "TypeScript",
+        python: "Python",
+        html: "HTML",
+        css: "CSS",
+        php: "PHP",
+        java: "Java"
+      };
+      Array.prototype.forEach.call(languageSelect.options, function (o) {
+        if (langMap[o.value]) o.textContent = langMap[o.value];
+      });
+    }
+    if (levelSelect) {
+      var levels = fa
+        ? ["1 — سریع", "2 — کامل", "3 — تخصصی", "4 — عمیق"]
+        : ["1 — Quick", "2 — Full", "3 — Specialized", "4 — Deep"];
+      Array.prototype.forEach.call(levelSelect.options, function (o, i) {
+        if (levels[i]) o.textContent = levels[i];
+      });
+    }
+    document.querySelectorAll(".mode-pill").forEach(function (pill, i) {
+      var labels = fa ? ["سریع", "کامل", "تخصصی", "عمیق"] : ["Quick", "Full", "Specialized", "Deep"];
+      if (labels[i]) pill.textContent = labels[i];
+    });
+    // Theme switch labels
+    var td = document.getElementById("themeDarkBtn");
+    var tl = document.getElementById("themeLightBtn");
+    if (td) td.textContent = fa ? "تاریک" : "Midnight";
+    if (tl) tl.textContent = fa ? "روشن" : "Clear";
   }
 
   function updateLevelDesc() {
@@ -433,6 +492,11 @@
     var themeLightBtn = $("#themeLightBtn");
     if (langEnBtn) langEnBtn.addEventListener("click", function () { applyLanguage("en"); });
     if (langFaBtn) langFaBtn.addEventListener("click", function () { applyLanguage("fa"); });
+    document.querySelectorAll("[data-lang]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        applyLanguage(btn.getAttribute("data-lang"));
+      });
+    });
     if (themeDarkBtn) themeDarkBtn.addEventListener("click", function () { setTheme("midnight"); });
     if (themeLightBtn) themeLightBtn.addEventListener("click", function () { setTheme("clearspace"); });
     document.querySelectorAll("[data-theme-set]").forEach(function (btn) {
