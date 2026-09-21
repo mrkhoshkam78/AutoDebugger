@@ -1762,7 +1762,7 @@ select, input, textarea {
 }
 
 
-/* ═══ V9.0 Conversation long content ═══ */
+/* ═══ V10.0 Conversation long content ═══ */
 .chat-bubble {
   max-width: min(100%, 42rem);
   overflow-wrap: anywhere;
