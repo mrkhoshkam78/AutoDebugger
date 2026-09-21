@@ -1,4 +1,4 @@
-/* Auto Debugger V9.0 — Smart Analysis Orchestrator (Web Worker)
+/* Auto Debugger V10.0 — Smart Analysis Orchestrator (Web Worker)
  * Supports: RUN / PAUSE / RESUME / CANCEL
  * States: IDLE | RUNNING | PAUSING | PAUSED | RESUMING | CANCELLING | CANCELLED | COMPLETED | FAILED
  */
@@ -159,7 +159,7 @@ self.onmessage = function (ev) {
         language: language,
         fileCount: fileCount
       });
-      progress("select", 24, "Supervisor V9 plan: " + ((plan.specialized || []).join(", ") || "shared") + " (" + (plan.specializedCount || 0) + " specialized)");
+      progress("select", 24, "Supervisor V10 plan: " + ((plan.specialized || []).join(", ") || "shared") + " (" + (plan.specializedCount || 0) + " specialized)");
     }
 
     progress("select", 28, "Selecting strategies for: " + category);
@@ -233,7 +233,7 @@ self.onmessage = function (ev) {
     result.strategies_selected_preview = (selPreview.selected || []).map(function (s) { return s.id; });
     result.cache_stats = cacheStats;
     result.worker_ms = Date.now() - t0;
-    result.version = "V9.0";
+    result.version = "V10.0";
     result.engines_executed = (plan && plan.specialized) || [];
     result.engines_planned = (plan && plan.engines) || [];
     if (typeof ADSupervisor !== "undefined") {
@@ -254,7 +254,7 @@ self.onmessage = function (ev) {
         var ci = result.centralIntelligence || {};
         progress("intelligence", 96, "CI: " + (ci.outputCount || 0) + " kept · " + (ci.suppressed || 0) + " suppressed · " + (ci.actionableCount || 0) + " prompt-ready");
       } catch (ciErr) {
-        result.centralIntelligence = { error: String(ciErr && ciErr.message || ciErr), version: "V9-CI" };
+        result.centralIntelligence = { error: String(ciErr && ciErr.message || ciErr), version: "V10-CI" };
       }
     }
 
