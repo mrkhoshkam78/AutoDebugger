@@ -866,6 +866,7 @@
 
 
     if (summaryCards) {
+      summaryCards.hidden = false;
       summaryCards.innerHTML =
         '<div class="card total"><div class="value">' + (summary.total_problems || 0) + '</div><div class="label">' + ADUtils.escapeHtml(ADi18n.t("total")) + "</div></div>" +
         '<div class="card critical"><div class="value">' + (bySev.critical || 0) + '</div><div class="label">' + ADUtils.escapeHtml(ADi18n.t("critical")) + "</div></div>" +

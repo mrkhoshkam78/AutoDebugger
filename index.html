@@ -181,25 +181,26 @@
         </div>
       </section>
 
-      <!-- Results -->
-      <section class="panel" id="resultsContent" aria-labelledby="resultsTitle">
+      <!-- Results: empty state is SIBLING (not child) so hide logic works -->
+      <div class="results-empty panel" id="resultsEmpty">
+        <svg width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <rect x="10" y="14" width="44" height="36" rx="6" stroke="currentColor" stroke-width="2" opacity="0.4"/>
+          <path d="M20 28h24M20 36h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.35"/>
+          <circle cx="44" cy="40" r="10" stroke="currentColor" stroke-width="2" opacity="0.5"/>
+          <path d="M51 47l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+        </svg>
+        <p data-i18n="resultsEmpty">Upload a project and run analysis to see findings here.</p>
+      </div>
+
+      <section class="panel" id="resultsContent" aria-labelledby="resultsTitle" hidden>
         <h2 class="panel-title" id="resultsTitle">
           <span data-i18n="resultsTitle">Findings</span>
           <span class="muted" id="problemCount"></span>
         </h2>
-        <div class="results-empty" id="resultsEmpty">
-          <svg width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-            <rect x="10" y="14" width="44" height="36" rx="6" stroke="currentColor" stroke-width="2" opacity="0.4"/>
-            <path d="M20 28h24M20 36h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.35"/>
-            <circle cx="44" cy="40" r="10" stroke="currentColor" stroke-width="2" opacity="0.5"/>
-            <path d="M51 47l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
-          </svg>
-          <p data-i18n="resultsEmpty">Upload a project and run analysis to see findings here.</p>
-        </div>
-        <div class="summary-cards" id="summaryCards" hidden></div>
-        <div class="filters" id="filters" hidden>
+        <div class="summary-cards" id="summaryCards"></div>
+        <div class="filters" id="filters">
           <select id="severityFilter" aria-label="Severity filter">
-            <option value="">All severities</option>
+            <option value="all">All severities</option>
             <option value="critical">Critical</option>
             <option value="high">High</option>
             <option value="medium">Medium</option>
@@ -207,9 +208,11 @@
             <option value="info">Info</option>
           </select>
           <select id="categoryFilter" aria-label="Category filter">
-            <option value="">All categories</option>
+            <option value="all">All categories</option>
           </select>
-          <input type="search" id="fileFilter" placeholder="Filter by file…" data-i18n-placeholder="filterFile" />
+          <select id="fileFilter" aria-label="File filter">
+            <option value="all">All files</option>
+          </select>
         </div>
         <div class="problem-list" id="problemList"></div>
         <div id="testList" hidden></div>
