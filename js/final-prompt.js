@@ -1,5 +1,5 @@
 /**
- * Final Prompt Generator — Auto Debugger V9.0
+ * Final Prompt Generator — Auto Debugger V10.0
  * Evidence-Driven Prompt Engineering Engine.
  * Pipeline: Valid Findings → Group by Root Cause → Rank → Build Context → Adaptive Sections → Quality Check → Prompt
  * Language-aware (Persian / English). Max soft ceiling ~2000 lines; prefer short for simple cases.
@@ -135,7 +135,7 @@
     lines.push("");
 
     lines.push("[PROJECT CONTEXT]");
-    lines.push("A local browser-only debugger (Auto Debugger V9) analyzed the project.");
+    lines.push("A local browser-only debugger (Auto Debugger V10) analyzed the project.");
     lines.push("Files involved: " + (fileList.join(", ") || "n/a"));
     if (meta.category) lines.push("Category focus: " + meta.category);
     if (meta.level) lines.push("Analysis level: " + meta.level);
@@ -300,7 +300,7 @@
     lines.push("");
 
     lines.push("[PROJECT CONTEXT]");
-    lines.push("یک دیباگر محلی و مرورگرمحور (Auto Debugger V9) پروژه را تحلیل کرده است.");
+    lines.push("یک دیباگر محلی و مرورگرمحور (Auto Debugger V10) پروژه را تحلیل کرده است.");
     lines.push("فایل‌های درگیر: " + (fileList.join("، ") || "نامشخص"));
     if (meta.category) lines.push("تمرکز دسته: " + meta.category);
     if (meta.level) lines.push("سطح تحلیل: " + meta.level);
@@ -523,6 +523,6 @@
     generate: generate,
     isValidFinding: isValidFinding,
     groupByRootCause: groupByRootCause,
-    version: "V9.0"
+    version: "V10.0"
   };
 })(typeof window !== "undefined" ? window : globalThis);

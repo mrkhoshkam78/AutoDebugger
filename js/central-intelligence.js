@@ -1,5 +1,5 @@
 /**
- * Auto Debugger V9 — Central Intelligence (Meta-Review Engine)
+ * Auto Debugger V10 — Central Intelligence (Meta-Review Engine)
  * Runs AFTER specialized engines + correlation.
  * Re-evaluates all findings with 8 capabilities:
  *  1. Meta-Consistency Check
@@ -345,7 +345,7 @@
     var problems = (result.problems || []).slice();
     var context = result.context || {};
     var report = {
-      version: "V9-CI",
+      version: "V10-CI",
       inputCount: problems.length,
       consistencyNotes: [],
       crossFileNotes: [],
@@ -402,7 +402,7 @@
 
   global.ADCentralIntelligence = {
     review: review,
-    version: "V9.0",
+    version: "V10.0",
     features: [
       "Meta-Consistency Check",
       "Cross-File Correlation Intelligence",

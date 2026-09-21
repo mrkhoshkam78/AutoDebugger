@@ -1,5 +1,5 @@
 /**
- * Conversational Explanation + Localization Layer V9.0
+ * Conversational Explanation + Localization Layer V10.0
  * Engines produce structured data / English keys; this layer builds user-facing text.
  * ADi18n.getLang() → normalizeFindingLanguage() → Finding Explanation → UI
  */

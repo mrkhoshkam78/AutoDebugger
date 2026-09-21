@@ -1,5 +1,5 @@
 /**
- * Auto Debugger V9.0 — Supervisor Engine
+ * Auto Debugger V10.0 — Supervisor Engine
  * Orchestrates specialized engines; does NOT invent bugs.
  * Engines produce Candidates/Evidence only; central pipeline finalizes Findings.
  * Contract: run / skip / cancel / pause / resume / validate / merge / correlate
@@ -136,7 +136,7 @@
     }
 
     return {
-      version: "V9.0",
+      version: "V10.0",
       category: category,
       level: level,
       engines: engines,
@@ -216,7 +216,7 @@
   function attachPlanMeta(result, plan) {
     result = result || {};
     result.supervisor = {
-      version: "V9.0",
+      version: "V10.0",
       plan: plan,
       enginesPlanned: (plan && plan.engines) || [],
       specializedPlanned: (plan && plan.specialized) || [],
@@ -244,7 +244,7 @@
   }
 
   global.ADSupervisor = {
-    version: "V9.0",
+    version: "V10.0",
     buildPlan: buildPlan,
     isEngineAllowed: isEngineAllowed,
     strategyToEngine: strategyToEngine,
