@@ -1,8 +1,9 @@
-/* Auto Debugger V10.0 — Smart Analysis Orchestrator (Web Worker)
+/* Auto Debugger V10.1.0 — Smart Analysis Orchestrator (Web Worker)
  * Supports: RUN / PAUSE / RESUME / CANCEL
  * States: IDLE | RUNNING | PAUSING | PAUSED | RESUMING | CANCELLING | CANCELLED | COMPLETED | FAILED
+ * V10.1.0: non-blocking pause (no busy-wait), progress throttle, faster path
  */
-/* global importScripts, ADUtils, ADProjectMapper, ADDebugEngine, ADAst, ADStrategies, ADCore, ADStage2, ADStage3, ADResultsStore, ADStandards, ADCache, ADSupervisor */
+/* global importScripts, ADUtils, ADProjectMapper, ADDebugEngine, ADAst, ADStrategies, ADCore, ADStage2, ADStage3, ADResultsStore, ADStandards, ADCache, ADSupervisor, ADCentralIntelligence */
 
 var BASE = self.location.href.replace(/[^/]+$/, "");
 try {
@@ -31,7 +32,10 @@ var control = {
   state: "IDLE",
   cancelRequested: false,
   pauseRequested: false,
-  resumeRequested: false
+  resumeRequested: false,
+  _resumeWaiters: null,
+  _lastProgressTs: 0,
+  _lastProgressPct: -1
 };
 
 function setState(s) {
@@ -39,40 +43,75 @@ function setState(s) {
   self.postMessage({ type: "state", state: s });
 }
 
+/** Throttled progress — max ~20 updates/sec and skip tiny pct changes */
 function progress(stage, percent, detail) {
   if (control.cancelRequested || control.state === "CANCELLING" || control.state === "CANCELLED") return;
-  self.postMessage({ type: "progress", stage: stage, percent: percent, detail: detail, state: control.state });
+  var now = Date.now();
+  var pct = Math.round(percent);
+  if (pct < 98 && control._lastProgressTs && (now - control._lastProgressTs) < 50 && Math.abs(pct - control._lastProgressPct) < 2) {
+    return;
+  }
+  control._lastProgressTs = now;
+  control._lastProgressPct = pct;
+  self.postMessage({ type: "progress", stage: stage, percent: pct, detail: detail, state: control.state });
 }
 
-/** Cooperative wait for pause/resume. Throws on cancel. */
+function rejectWaiters(err) {
+  var w = control._resumeWaiters;
+  control._resumeWaiters = null;
+  if (!w) return;
+  for (var i = 0; i < w.length; i++) {
+    try { w[i].reject(err); } catch (e) {}
+  }
+}
+
+function resolveWaiters() {
+  var w = control._resumeWaiters;
+  control._resumeWaiters = null;
+  if (!w) return;
+  for (var i = 0; i < w.length; i++) {
+    try { w[i].resolve(); } catch (e) {}
+  }
+}
+
+/**
+ * Non-blocking pause barrier — yields the worker event loop so resume/cancel messages are processed.
+ * Replaces the old busy-wait while-loop that blocked onmessage.
+ */
 function checkControl() {
   if (control.cancelRequested || control.state === "CANCELLING") {
     control.state = "CANCELLED";
+    rejectWaiters(new Error("ANALYSIS_CANCELLED"));
     throw new Error("ANALYSIS_CANCELLED");
   }
-  if (control.pauseRequested || control.state === "PAUSING") {
-    control.state = "PAUSED";
-    setState("PAUSED");
-    var start = Date.now();
-    while (control.state === "PAUSED") {
-      if (control.cancelRequested) {
-        control.state = "CANCELLED";
-        throw new Error("ANALYSIS_CANCELLED");
-      }
-      if (control.resumeRequested) {
-        control.resumeRequested = false;
+  if (!(control.pauseRequested || control.state === "PAUSING" || control.state === "PAUSED")) {
+    return Promise.resolve();
+  }
+  control.state = "PAUSED";
+  setState("PAUSED");
+  return new Promise(function (resolve, reject) {
+    if (!control._resumeWaiters) control._resumeWaiters = [];
+    control._resumeWaiters.push({ resolve: resolve, reject: reject });
+    // Safety auto-resume after 120s to avoid permanent hang
+    setTimeout(function () {
+      if (control.state === "PAUSED" && control._resumeWaiters) {
+        control.resumeRequested = true;
         control.pauseRequested = false;
-        control.state = "RESUMING";
-        setState("RESUMING");
         control.state = "RUNNING";
         setState("RUNNING");
-        break;
+        resolveWaiters();
       }
-      if (Date.now() - start > 30000) {
-        control.resumeRequested = true;
-      }
+    }, 120000);
+  }).then(function () {
+    if (control.cancelRequested) {
+      control.state = "CANCELLED";
+      throw new Error("ANALYSIS_CANCELLED");
     }
-  }
+    control.pauseRequested = false;
+    control.resumeRequested = false;
+    control.state = "RUNNING";
+    setState("RUNNING");
+  });
 }
 
 self.onmessage = function (ev) {
@@ -91,6 +130,7 @@ self.onmessage = function (ev) {
     if (control.state === "RUNNING" || control.state === "PAUSED" || control.state === "PAUSING" || control.state === "RESUMING") {
       setState("CANCELLING");
     }
+    rejectWaiters(new Error("ANALYSIS_CANCELLED"));
     return;
   }
 
@@ -106,42 +146,63 @@ self.onmessage = function (ev) {
     if (control.state === "PAUSED" || control.state === "PAUSING") {
       control.resumeRequested = true;
       control.pauseRequested = false;
+      control.state = "RESUMING";
+      setState("RESUMING");
+      resolveWaiters();
     }
     return;
   }
 
   if (data.type !== "analyze") return;
 
+  // Prevent overlapping runs
+  if (control.state === "RUNNING" || control.state === "PAUSED" || control.state === "PAUSING") {
+    self.postMessage({ type: "error", message: "Analysis already in progress" });
+    return;
+  }
+
   control.cancelRequested = false;
   control.pauseRequested = false;
   control.resumeRequested = false;
+  control._lastProgressTs = 0;
+  control._lastProgressPct = -1;
   setState("RUNNING");
 
+  runAnalyze(data).catch(function (err) {
+    if (err && err.message === "ANALYSIS_CANCELLED") {
+      setState("CANCELLED");
+      self.postMessage({ type: "cancelled", message: "Analysis cancelled by user" });
+    } else {
+      setState("FAILED");
+      self.postMessage({ type: "error", message: (err && err.message) || String(err) });
+    }
+  });
+};
+
+async function runAnalyze(data) {
   try {
     var files = data.files || {};
     var language = data.language || "auto";
     var uiLang = data.uiLang || "en";
     // Make UI language available to explanation layer inside worker
-    try {
-      if (typeof localStorage !== "undefined") localStorage.setItem("ad_lang", uiLang);
-    } catch (e) {}
     self.__AD_UI_LANG = uiLang;
+    try { if (typeof ADi18n !== "undefined" && ADi18n.setLang) ADi18n.setLang(uiLang); } catch (e) {}
     var category = data.category || "Test All";
     var level = data.level || 1;
     var t0 = Date.now();
 
-    checkControl();
+    await checkControl();
     progress("understand", 4, "Understanding project");
     var graph = null;
     if (typeof ADProjectMapper !== "undefined") {
       graph = new ADProjectMapper.ProjectMapper(files).map();
     }
 
-    checkControl();
+    await checkControl();
     progress("context", 10, "Mapping context + languages");
     var fileCount = Object.keys(files).length;
 
-    checkControl();
+    await checkControl();
     progress("ast", 18, "Parsing AST (cache-aware)");
     var astMap = null;
     var cacheStats = { parsed: 0, cached: 0 };
@@ -150,7 +211,7 @@ self.onmessage = function (ev) {
       if (astMap && astMap.__cacheStats) cacheStats = astMap.__cacheStats;
     }
 
-    checkControl();
+    await checkControl();
     var plan = null;
     if (typeof ADSupervisor !== "undefined" && ADSupervisor.buildPlan) {
       plan = ADSupervisor.buildPlan({
@@ -179,23 +240,23 @@ self.onmessage = function (ev) {
     }
     progress("select", 34, (selPreview.selected || []).length + " strategies selected (cap " + (selPreview.cap || "?") + ")");
 
-    checkControl();
+    await checkControl();
     progress("model", 40, "Building code model + data-flow");
     var engine = new ADDebugEngine.DebugEngine(files, language, category, level, graph);
     if (astMap) engine.astMap = astMap;
     if (plan) engine.supervisorPlan = plan;
 
     progress("analyze", 48, "Running category strategies");
-    checkControl();
+    await checkControl();
     var result = engine.run();
 
-    checkControl();
+    await checkControl();
     progress("flow", 62, "Data-flow / CFG / symbolic");
     if (engine.cfgIssues) {
       progress("flow", 66, "CFG issues: " + (engine.cfgIssues.length || 0));
     }
 
-    checkControl();
+    await checkControl();
     progress("validate", 72, "Validation + category filter");
     if (engine.stage2) {
       progress("stage2", 78, "Tests / mutation / dependency");
@@ -211,7 +272,7 @@ self.onmessage = function (ev) {
     }
 
     if (engine.stage3) {
-      checkControl();
+      await checkControl();
       progress("stage3", 86, "Correlation / DOM / evidence graph");
       result.stage3 = engine.stage3;
       result.stage3_summary = engine.stage3.summary || null;
@@ -227,13 +288,13 @@ self.onmessage = function (ev) {
       };
     }
 
-    checkControl();
+    await checkControl();
     progress("merge", 92, "Merging findings");
     result.strategies_count = result.strategies_count || (result.strategies_run || []).length;
     result.strategies_selected_preview = (selPreview.selected || []).map(function (s) { return s.id; });
     result.cache_stats = cacheStats;
     result.worker_ms = Date.now() - t0;
-    result.version = "V10.0";
+    result.version = "V10.1.0";
     result.engines_executed = (plan && plan.specialized) || [];
     result.engines_planned = (plan && plan.engines) || [];
     if (typeof ADSupervisor !== "undefined") {
@@ -246,7 +307,7 @@ self.onmessage = function (ev) {
     }
 
     // Central Intelligence — meta-review after engines + correlation
-    checkControl();
+    await checkControl();
     progress("intelligence", 94, "Central Intelligence review");
     if (typeof ADCentralIntelligence !== "undefined" && ADCentralIntelligence.review) {
       try {
@@ -254,7 +315,7 @@ self.onmessage = function (ev) {
         var ci = result.centralIntelligence || {};
         progress("intelligence", 96, "CI: " + (ci.outputCount || 0) + " kept · " + (ci.suppressed || 0) + " suppressed · " + (ci.actionableCount || 0) + " prompt-ready");
       } catch (ciErr) {
-        result.centralIntelligence = { error: String(ciErr && ciErr.message || ciErr), version: "V10-CI" };
+        result.centralIntelligence = { error: String(ciErr && ciErr.message || ciErr), version: "V10.1.0-CI" };
       }
     }
 
@@ -276,4 +337,4 @@ self.onmessage = function (ev) {
       self.postMessage({ type: "error", message: (err && err.message) || String(err) });
     }
   }
-};
+}
