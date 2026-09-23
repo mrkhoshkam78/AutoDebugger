@@ -36,7 +36,7 @@
       sumWarn: "Warning",
       sumCrit: "Critical",
       sumInfo: "Info",
-      footerLeft: "V11.5.0 · Supervisor · Specialized Engines · Offline",
+      footerLeft: "V11.6.0 · Supervisor · Specialized Engines · Offline",
       footerRight: "Offline · IndexedDB · Safe",
 
       catMath: "Mathematical / Calculations",
@@ -67,7 +67,7 @@
       menuOpen: "Menu",
       menuClose: "Close",
 
-      version: "V11.5.0",
+      version: "V11.6.0",
       heroKicker: "Browser-only · Evidence-driven",
       heroTitle: "Analyze code with precision — not assumptions",
       heroSub: "Upload a project, run specialized static engines, and review findings backed by evidence.",
@@ -154,7 +154,7 @@
       langEn: "English",
       langFa: "فارسی",
       deleteFile: "Remove",
-      footerLeft: "V11.5.0 · Supervisor · Specialized Engines · Offline · No auto-fix",
+      footerLeft: "V11.6.0 · Supervisor · Specialized Engines · Offline · No auto-fix",
       footerRight: "Offline · Safe · No auto-fix",
       level1Desc: "Quick syntax & structure. Context-aware.",
       level2Desc: "Relations, UI/UX depth. Fewer false positives.",
@@ -349,7 +349,7 @@
       sumWarn: "هشدار",
       sumCrit: "بحرانی",
       sumInfo: "اطلاعات",
-      footerLeft: "V11.5.0 · Supervisor · موتورهای تخصصی · آفلاین",
+      footerLeft: "V11.6.0 · Supervisor · موتورهای تخصصی · آفلاین",
       footerRight: "آفلاین · IndexedDB · امن",
 
       catMath: "ریاضی / محاسبات",
@@ -380,7 +380,7 @@
       menuOpen: "منو",
       menuClose: "بستن",
 
-      version: "V11.5.0",
+      version: "V11.6.0",
       heroKicker: "فقط مرورگر · مبتنی بر Evidence",
       heroTitle: "تحلیل کد با دقت — نه با حدس",
       heroSub: "پروژه را بارگذاری کنید، موتورهای تخصصی را اجرا کنید و یافته‌های مستند را ببینید.",
@@ -467,7 +467,7 @@
       langEn: "English",
       langFa: "فارسی",
       deleteFile: "حذف",
-      footerLeft: "V11.5.0 · ناظر · موتورهای تخصصی · آفلاین · بدون اصلاح خودکار",
+      footerLeft: "V11.6.0 · ناظر · موتورهای تخصصی · آفلاین · بدون اصلاح خودکار",
       footerRight: "آفلاین · امن · بدون اصلاح خودکار",
       level1Desc: "بررسی سریع نحو و ساختار با درک زمینه.",
       level2Desc: "روابط و عمق UI/UX با خطای مثبت کمتر.",

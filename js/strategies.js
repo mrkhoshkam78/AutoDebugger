@@ -22,6 +22,15 @@
     { id: "SYN-JSON", name: "JSON validity", category: "Syntax", langs: ["json"], requires: {}, levels: [1,2,3,4], priority: 1, cost: 1, method: "jsonValid", description: "Parse JSON" },
     { id: "SYN-JS-DOTSPACE", name: "JS malformed call", category: "Syntax", langs: ["javascript","typescript"], requires: {}, levels: [2,3,4], priority: 4, cost: 1, method: "jsDotSpace", description: "dot-space call pattern" },
     { id: "SYN-CSS-EMPTY", name: "Empty CSS rules", category: "Syntax", langs: ["css"], requires: { css: true }, levels: [3,4], priority: 5, cost: 1, method: "cssEmpty", description: "Empty { }" },
+    { id: "SYN-JS-RETURN", name: "Unreachable after return", category: "Syntax", langs: ["javascript","typescript"], requires: {}, levels: [3,4], priority: 3, cost: 2, method: "jsUnreachable", description: "Code after return/throw" },
+    { id: "SYN-JS-SEMI", name: "Suspicious ASI risk", category: "Syntax", langs: ["javascript","typescript"], requires: {}, levels: [3,4], priority: 4, cost: 2, method: "jsAsiRisk", description: "return\\n value ASI trap" },
+    { id: "SYN-JS-DUP-KEY", name: "Duplicate object keys", category: "Syntax", langs: ["javascript","typescript"], requires: {}, levels: [3,4], priority: 3, cost: 2, method: "jsDupKeys", description: "Same key twice in object literal" },
+    { id: "SYN-JS-STRICT-EQ", name: "Assignment in condition", category: "Syntax", langs: ["javascript","typescript"], requires: {}, levels: [2,3,4], priority: 2, cost: 1, method: "jsAssignCond", description: "if (x = y) instead of ==" },
+    { id: "SYN-PY-EXCEPT", name: "Bare except", category: "Syntax", langs: ["python"], requires: {}, levels: [2,3,4], priority: 3, cost: 1, method: "pyBareExcept", description: "except: without type" },
+    { id: "SYN-HTML-DUP-ID", name: "Duplicate HTML ids", category: "Syntax", langs: ["html"], requires: { html: true }, levels: [2,3,4], priority: 2, cost: 2, method: "htmlDupId", description: "Same id used more than once" },
+    { id: "SYN-CSS-UNKNOWN", name: "Invalid CSS property chars", category: "Syntax", langs: ["css"], requires: { css: true }, levels: [3,4], priority: 4, cost: 1, method: "cssInvalidProp", description: "Property with illegal characters" },
+    { id: "SYN-JS-TEMPLATE", name: "Broken template literal", category: "Syntax", langs: ["javascript","typescript"], requires: {}, levels: [3,4], priority: 3, cost: 2, method: "jsTemplateBalance", description: "Unbalanced backticks" },
+    { id: "SYN-JSON-TRAIL", name: "Trailing comma JSON risk", category: "Syntax", langs: ["json","javascript"], requires: {}, levels: [3,4], priority: 4, cost: 1, method: "jsonTrailingComma", description: "Trailing comma before } or ]" },
 
     // ── Security ──
     { id: "SEC-EVAL", name: "eval() usage", category: "Security", langs: ["javascript","typescript","html"], requires: {}, levels: [1,2,3,4], priority: 1, cost: 1, method: "secEval", description: "Dynamic code execution" },
@@ -110,6 +119,14 @@
     { id: "MATH-CHAIN", name: "Formula chain risk", category: "Mathematical / Calculations", langs: ["javascript","typescript"], requires: {}, levels: [3,4], priority: 3, cost: 3, method: "mathChain", description: "Multi-step numeric assign without guards" },
     { id: "MATH-INDEP", name: "Independent arithmetic check", category: "Mathematical / Calculations", langs: ["javascript","typescript"], requires: {}, levels: [2,3,4], priority: 2, cost: 2, method: "mathIndepCheck", description: "Pure arithmetic vs independent calc" },
     { id: "MATH-NEGZERO", name: "Boundary numeric values", category: "Mathematical / Calculations", langs: ["javascript","typescript","python"], requires: {}, levels: [3,4], priority: 4, cost: 1, method: "mathBoundary", description: "ops with 0/-1 without checks" },
+    { id: "MATH-MODZERO", name: "Modulo by zero", category: "Mathematical / Calculations", langs: ["javascript","typescript","python"], requires: {}, levels: [1,2,3,4], priority: 1, cost: 1, method: "mathModZero", description: "n % 0 is NaN / error" },
+    { id: "MATH-CMP-FLOAT", name: "Float equality compare", category: "Mathematical / Calculations", langs: ["javascript","typescript"], requires: {}, levels: [2,3,4], priority: 2, cost: 1, method: "mathFloatEq", description: "x === 0.1 style float equality" },
+    { id: "MATH-OVERFLOW", name: "Integer overflow signals", category: "Mathematical / Calculations", langs: ["javascript","typescript"], requires: {}, levels: [3,4], priority: 3, cost: 2, method: "mathOverflow", description: "Number.MAX_SAFE_INTEGER / bit shifts" },
+    { id: "MATH-UNIT-MIX", name: "Unit / scale mix risk", category: "Mathematical / Calculations", langs: ["javascript","typescript"], requires: {}, levels: [3,4], priority: 3, cost: 2, method: "mathUnitMix", description: "ms vs s, px vs %, cents vs dollars" },
+    { id: "MATH-ACCUM", name: "Accumulation without init", category: "Mathematical / Calculations", langs: ["javascript","typescript","python"], requires: {}, levels: [3,4], priority: 3, cost: 2, method: "mathAccum", description: "sum += without initial 0" },
+    { id: "MATH-RANDOM", name: "Math.random for security", category: "Mathematical / Calculations", langs: ["javascript","typescript"], requires: {}, levels: [2,3,4], priority: 2, cost: 1, method: "mathRandomSec", description: "Math.random used near token/secret" },
+    { id: "MATH-NEG-INDEX", name: "Negative array index math", category: "Mathematical / Calculations", langs: ["javascript","typescript"], requires: {}, levels: [3,4], priority: 4, cost: 2, method: "mathNegIndex", description: "arr[i-1] without i>0 guard" },
+    { id: "MATH-TAX", name: "Tax/discount double apply", category: "Mathematical / Calculations", langs: ["javascript","typescript"], requires: {}, levels: [3,4], priority: 3, cost: 2, method: "mathTaxDouble", description: "Same rate applied twice in chain" },
 
     // ── Database / Storage ──
     { id: "STOR-LS-KEY", name: "localStorage key mismatch", category: "Database / Storage", langs: ["javascript","typescript"], requires: {}, levels: [1,2,3,4], priority: 1, cost: 2, method: "storKeyMismatch", description: "setItem/getItem different keys" },
@@ -123,7 +140,8 @@
     { id: "CMB-GENERIC", name: "Entry + maintainability combo", category: "Code / Logic", langs: ["*"], requires: {}, levels: [4], priority: 4, cost: 3, method: "cmbGeneric", description: "Combined structure signals" }
   ];
 
-  var LEVEL_CAPS = { 1: 5, 2: 15, 3: 35, 4: 80 };
+  /* V11.6: Deep & Special budgets roughly 2× denser for real coverage */
+  var LEVEL_CAPS = { 1: 5, 2: 15, 3: 55, 4: 120 };
   var ALL_CATEGORIES = [
     "Code / Logic", "UI", "UX", "Performance", "Syntax",
     "Security", "Responsive behavior", "Structure / Architecture",
@@ -215,7 +233,7 @@
     getAllCategories: function () { return ALL_CATEGORIES.slice(); },
     getRegistry: function () { return STRATEGIES.slice(); },
     getCaps: function () {
-      return { quick: 5, full: 15, deep: 35, special: 80 };
+      return { quick: 5, full: 15, deep: 55, special: 120 };
     },
     ALL_CATEGORIES: ALL_CATEGORIES,
     STRATEGIES: STRATEGIES
