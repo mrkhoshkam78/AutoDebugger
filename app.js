@@ -653,17 +653,19 @@
   function renderFileList() {
     if (!fileList) return;
     if (!fileMeta.length) {
-      fileList.innerHTML = '<p class="empty-state">' + ADUtils.escapeHtml(ADi18n.t("noFiles")) + "</p>";
+      fileList.hidden = true;
+      fileList.innerHTML = "";
       return;
     }
-    var delLabel = ADi18n.t("deleteFile");
+    fileList.hidden = false;
+    var delLabel = ADi18n.t("deleteFile") || "Delete";
     fileList.innerHTML = fileMeta.map(function (f) {
       return (
         '<div class="file-item" data-name="' + ADUtils.escapeHtml(f.name) + '">' +
         '<span class="name" title="' + ADUtils.escapeHtml(f.name) + '">' + ADUtils.escapeHtml(f.name) + "</span>" +
         '<span class="meta">' + ADUtils.formatSize(f.size) + " · " + ADUtils.escapeHtml(f.type) + "</span>" +
         '<button type="button" class="btn danger-ghost" data-delete="' + ADUtils.escapeHtml(f.name) + '" title="' + ADUtils.escapeHtml(delLabel) + '" aria-label="' + ADUtils.escapeHtml(delLabel) + '">' +
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>' +
+        '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>' +
         "</button></div>"
       );
     }).join("");

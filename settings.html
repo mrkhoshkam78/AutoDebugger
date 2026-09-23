@@ -3,91 +3,128 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="description" content="Auto Debugger — browser-only static analysis" />
-  <title>Settings · Auto Debugger V11.5.0</title>
+  <meta name="description" content="Auto Debugger V11.6 — Settings" />
+  <title>تنظیمات · دیباگ خودکار V11.6.0</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet" />
 </head>
 <body class="has-sidebar page-settings">
-  <aside class="app-sidebar" id="appSidebar" aria-label="Main navigation">
-    <div class="sidebar-brand"><span class="sidebar-logo">AD</span><span class="sidebar-title">Auto Debugger</span></div>
-    <nav class="sidebar-nav">
-      <a class="nav-item" href="index.html"><span data-i18n="navAnalysis">Analysis</span></a>
-      <a class="nav-item" href="assistant.html"><span data-i18n="navAssistant">Assistant</span></a>
-      <a class="nav-item active" href="settings.html"><span data-i18n="navSettings">Settings</span></a>
-    </nav>
-    <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Close">×</button>
-  </aside>
+
   <div class="sidebar-overlay" id="sidebarOverlay" hidden></div>
+
+  <aside class="app-sidebar" id="appSidebar" aria-label="Main navigation">
+    <button type="button" class="sidebar-close" id="sidebarClose" aria-label="بستن منو">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+    <div class="sidebar-brand">
+      <div class="sidebar-logo" aria-hidden="true">AD</div>
+      <div class="sidebar-brand-text">
+        <span class="sidebar-title">دیباگ خودکار</span>
+        <span class="sidebar-ver">V11.6.0</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" href="index.html" data-nav="home">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 10v9a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1v-9"/></svg>
+        <span data-i18n="navHome">خانه</span>
+      </a>
+      <a class="nav-item" href="assistant.html" data-nav="assistant">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>
+        <span data-i18n="navAssistant">دستیار</span>
+      </a>
+      <a class="nav-item active" href="settings.html" data-nav="settings">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        <span data-i18n="navSettings">تنظیمات</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <span class="version-badge">V11.6.0</span>
+    </div>
+  </aside>
+
   <div class="app-shell">
     <header class="header">
       <div class="header-left">
-        <button type="button" class="icon-btn menu-btn" id="sidebarOpen" aria-label="Menu">☰</button>
-        <h1 data-i18n="navSettings">Settings</h1>
+        <button type="button" class="icon-btn sidebar-open" id="sidebarOpen" aria-label="باز کردن منو">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <h1 data-i18n="navSettings">تنظیمات</h1>
       </div>
     </header>
-        <main class="settings-main">
+
+    <main class="settings-main">
       <section class="panel settings-card">
-        <h2 data-i18n="settingsAppearance">Appearance</h2>
-        <label><span data-i18n="settingsTheme">Theme</span>
+        <h2 data-i18n="settingsAppearance">ظاهر</h2>
+        <label>
+          <span data-i18n="settingsTheme">تم</span>
           <select id="setTheme">
             <option value="midnight" data-i18n="themeDark">Midnight Dev</option>
             <option value="clearspace" data-i18n="themeLight">Clearspace</option>
           </select>
         </label>
-        <label><span data-i18n="settingsLang">UI language</span>
+        <label>
+          <span data-i18n="settingsLang">زبان رابط</span>
           <select id="setLang">
-            <option value="en" data-i18n="langEn">English</option>
             <option value="fa" data-i18n="langFa">فارسی</option>
+            <option value="en" data-i18n="langEn">English</option>
           </select>
         </label>
       </section>
+
       <section class="panel settings-card">
-        <h2 data-i18n="settingsAnalysis">Analysis defaults</h2>
-        <label><span data-i18n="settingsDefaultLevel">Default level</span>
+        <h2 data-i18n="settingsAnalysis">پیش‌فرض تحلیل</h2>
+        <label>
+          <span data-i18n="settingsDefaultLevel">سطح پیش‌فرض</span>
           <select id="setLevel">
-            <option value="1" data-i18n="levelQuick">Quick</option>
-            <option value="2" data-i18n="levelFull">Full</option>
-            <option value="3" data-i18n="levelDeep">Deep</option>
-            <option value="4" data-i18n="levelSpecial">Special</option>
+            <option value="1" data-i18n="levelQuick">سریع</option>
+            <option value="2" data-i18n="levelFull">کامل</option>
+            <option value="3" data-i18n="levelDeep">عمیق</option>
+            <option value="4" data-i18n="levelSpecial">ویژه</option>
           </select>
         </label>
       </section>
+
       <section class="panel settings-card settings-collapsible" id="llmSection">
         <button type="button" class="collapse-toggle" id="llmToggle" aria-expanded="false">
-          <span data-i18n="settingsLlmTitle">LLM Provider (optional)</span>
+          <span data-i18n="settingsLlmTitle">ارائه‌دهنده LLM (اختیاری)</span>
           <span class="collapse-chevron" aria-hidden="true">▸</span>
         </button>
         <div class="collapse-body" id="llmBody" hidden>
-          <p class="hint" data-i18n="settingsLlmHint">API key stays in session only — never stored in source. Leave as None for local evidence mode.</p>
-          <label><span data-i18n="settingsProvider">Provider</span>
+          <p class="hint" data-i18n="settingsLlmHint">کلید API فقط در همین نشست نگه داشته می‌شود. برای حالت شواهد محلی روی None بگذارید.</p>
+          <label>
+            <span data-i18n="settingsProvider">ارائه‌دهنده</span>
             <select id="setProvider">
-              <option value="none" data-i18n="providerNone">None (local)</option>
-              <option value="openai-compatible" data-i18n="providerOpenAI">OpenAI-compatible endpoint</option>
+              <option value="none" data-i18n="providerNone">هیچکدام (محلی)</option>
+              <option value="openai-compatible" data-i18n="providerOpenAI">OpenAI-compatible</option>
             </select>
           </label>
-          <label><span data-i18n="settingsEndpoint">Endpoint URL</span>
+          <label>
+            <span data-i18n="settingsEndpoint">آدرس Endpoint</span>
             <input type="url" id="setEndpoint" placeholder="https://api.example.com/v1/chat/completions" />
           </label>
-          <label><span data-i18n="settingsModel">Model</span>
+          <label>
+            <span data-i18n="settingsModel">مدل</span>
             <input type="text" id="setModel" placeholder="model-id" />
           </label>
-          <label><span data-i18n="settingsApiKey">API Key</span>
+          <label>
+            <span data-i18n="settingsApiKey">کلید API</span>
             <input type="password" id="setApiKey" placeholder="sk-…" autocomplete="off" />
           </label>
-          <button type="button" class="btn primary" id="saveLlm" data-i18n="settingsSaveLlm">Save LLM settings</button>
+          <button type="button" class="btn primary" id="saveLlm" data-i18n="settingsSaveLlm">ذخیره تنظیمات LLM</button>
           <p id="llmSaveMsg" class="hint" hidden></p>
         </div>
       </section>
+
       <section class="panel settings-card">
-        <h2 data-i18n="settingsStorage">Storage</h2>
-        <button type="button" class="btn secondary" id="clearChatMem" data-i18n="settingsClearChat">Clear conversation memory</button>
-        <button type="button" class="btn secondary" id="clearFindings" data-i18n="settingsClearFindings">Clear saved findings</button>
+        <h2 data-i18n="settingsStorage">ذخیره‌سازی</h2>
+        <button type="button" class="btn secondary" id="clearChatMem" data-i18n="settingsClearChat">پاک کردن حافظه گفتگو</button>
+        <button type="button" class="btn secondary" id="clearFindings" data-i18n="settingsClearFindings">پاک کردن یافته‌های ذخیره‌شده</button>
       </section>
     </main>
   </div>
+
   <script src="js/lib/utils.js"></script>
   <script src="js/i18n.js"></script>
   <script src="js/results-store.js"></script>

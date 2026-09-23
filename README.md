@@ -1,4 +1,4 @@
-# Auto Debugger V11.5.0
+# Auto Debugger V11.6.0
 
 Browser-only static analysis debugger — Evidence-Driven Static Bug Analysis Engine with specialized engines.
 
@@ -7,23 +7,20 @@ Open `index.html` in a browser, or deploy this folder to **GitHub Pages**.
 
 No server, no install, offline-first. Analysis runs in a **Web Worker** with Pause / Resume / Cancel.
 
-## V11.5.0 focus
-- **Real Specialized Engines** under Supervisor orchestration (CodeLogic, Syntax, Security, UI, UX, Responsive, Performance, Architecture, Math, Storage, Test)
-- **Engine Isolation**: Category selection controls execution, not only result filtering
-- **Math / Financial Analysis Engine** upgraded with independent calculation path, precision, boundary & formula checks
-- **Storage Engine** deep patterns (localStorage / sessionStorage / IndexedDB / serialization / key mismatch / stale)
-- **Worker Control**: RUN · PAUSE · RESUME · CANCEL with real cooperative states
-- **Supervisor V10**: plan → select specialized engines → budget → execute → validate → correlate → final finding
-- **Finding Localization**: full Persian / English pipeline for user-facing Finding Card text (technical identifiers preserved)
-- Shared infrastructure (AST, Code Model, CFG, Data-Flow, Validation, Correlation) kept non-duplicated
+## V11.6.0 focus
+- **UI fixes**: problem-list expand/collapse, file-list layout, hamburger menu visibility (mobile-only), settings page full design-system alignment + contrast
+- **Deep / Special** budgets increased (~2×): Deep ≤55 strategies, Special ≤120
+- **Syntax engine** upgraded: unreachable code, ASI return trap, duplicate keys, assignment-in-condition, bare except, duplicate HTML ids, template balance, JSON trailing comma, and more
+- **Math / Calculations engine** upgraded: modulo-by-zero, float equality, overflow signals, unit mix, accumulator init, Math.random in security context, negative index, tax/discount double-apply
+- Shared infrastructure (AST, Code Model, Validation, Correlation) kept non-duplicated
 
 ## Levels
 | Level | Budget |
 |-------|--------|
 | Quick | ≤ 5 strategies |
 | Full | 10–15 |
-| Deep | 25–35 |
-| Special | context-applicable deeper set |
+| Deep | ≤ 55 |
+| Special | ≤ 120 |
 | Test All | all applicable strategies |
 
 ## Constraint
