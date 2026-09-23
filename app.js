@@ -1002,10 +1002,12 @@
     if (categoryFilter) {
       var cats = {};
       allProblems.forEach(function (p) {
-        cats[p.category] = 1;
-        (p.related_categories || []).forEach(function (c) { cats[c] = 1; });
+        if (p.category && String(p.category).trim()) cats[String(p.category).trim()] = 1;
+        (p.related_categories || []).forEach(function (c) {
+          if (c && String(c).trim()) cats[String(c).trim()] = 1;
+        });
       });
-      var catKeys = Object.keys(cats);
+      var catKeys = Object.keys(cats).sort();
       categoryFilter.innerHTML =
         '<option value="all">' + ADUtils.escapeHtml(ADi18n.t("allCategories")) + "</option>" +
         catKeys.map(function (c) {
