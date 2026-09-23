@@ -13,7 +13,9 @@
 
   function init() {
     try {
-      var theme = localStorage.getItem("ad_theme") || "dark";
+      var theme = localStorage.getItem("ad_theme") || "midnight";
+      if (theme === "dark") theme = "midnight";
+      if (theme === "light") theme = "clearspace";
       document.documentElement.setAttribute("data-theme", theme);
       if ($("setTheme")) $("setTheme").value = theme;
     } catch (e) {}
@@ -52,8 +54,11 @@
     }
 
     if ($("setTheme")) $("setTheme").onchange = function () {
-      localStorage.setItem("ad_theme", this.value);
-      document.documentElement.setAttribute("data-theme", this.value);
+      var t = this.value;
+      if (t === "dark") t = "midnight";
+      if (t === "light") t = "clearspace";
+      localStorage.setItem("ad_theme", t);
+      document.documentElement.setAttribute("data-theme", t);
     };
     if ($("setLang")) $("setLang").onchange = function () {
       localStorage.setItem("ad_lang", this.value);

@@ -96,6 +96,8 @@
 
       localBadge: "Local · Offline",
       statusReady: "Ready",
+      needFiles: "Upload a code file first to start analysis",
+      navComingSoon: "This section is coming soon",
       statusReading: "Reading files…",
       statusMapping: "Understanding project…",
       statusContext: "Checking context…",
@@ -343,7 +345,7 @@
       sevInfo: "اطلاعات",
       sevWarn: "هشدار",
       sevCrit: "بحرانی",
-      sumTotal: "اطلاعات",
+      sumTotal: "کل",
       sumWarn: "هشدار",
       sumCrit: "بحرانی",
       sumInfo: "اطلاعات",
@@ -407,6 +409,8 @@
 
       localBadge: "محلی · آفلاین",
       statusReady: "آماده",
+      needFiles: "ابتدا فایل کد را آپلود کنید تا تحلیل شروع شود",
+      navComingSoon: "این بخش به‌زودی اضافه می‌شود",
       statusReading: "در حال خواندن فایل‌ها…",
       statusMapping: "درک ساختار پروژه…",
       statusContext: "بررسی زمینه پروژه…",
