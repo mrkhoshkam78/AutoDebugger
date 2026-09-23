@@ -1,5 +1,5 @@
 /**
- * Auto Debugger V10.1.0 — Evidence-driven (Candidate → finalizeFinding)
+ * Auto Debugger V11.0.0 — Evidence-driven (Candidate → finalizeFinding)
  */
 (function (global) {
   "use strict";
@@ -205,7 +205,7 @@
             cfgIssues: this.cfgIssues,
             symbolicFindings: this.symbolicFindings,
             projectKey: pk,
-            version: "V10.1.0-Stage2",
+            version: "V11.0.0-Stage2",
             maxCandidates: 40
           }
         );
@@ -229,7 +229,7 @@
           stage2: this.stage2 || {},
           astMap: this.astMap,
           gitMeta: this.gitMeta || null,
-          options: { version: "V10.1.0-Stage3" }
+          options: { version: "V11.0.0-Stage3" }
         });
         if (this.stage3 && this.stage3.problems) {
           this.problems = this.stage3.problems;
@@ -290,7 +290,7 @@
       supervisor: this.supervisorPlan || null,
       test_results: this.testResults,
       context: { fileCount: this.ctx.fileCount, languages: this.ctx.languages, has: this.ctx.has },
-      version: "V10.1.0",
+      version: "V11.0.0",
       summary: {
         total_problems: this.problems.length,
         by_severity: this._countSeverity(),
@@ -346,7 +346,7 @@
 
   DebugEngine.prototype._add = function (severity, file, line, section, description, why, expected, detected, recommendation, strategy, extras) {
     extras = extras || {};
-    // V10.1.0: Rule → Candidate → finalizeFinding (Evidence + Context + Validation + Confidence)
+    // V11.0.0: Rule → Candidate → finalizeFinding (Evidence + Context + Validation + Confidence)
     if (typeof ADStandards !== "undefined" && ADStandards.finalizeFinding && ADStandards.createCandidateFromAdd) {
       var candidate = ADStandards.createCandidateFromAdd(
         severity, file, line, section, description, why, expected, detected, recommendation, strategy, extras, this.ctx
@@ -782,6 +782,175 @@ jsDotSpace: function (s) {
           }
         });
       },
+
+      // ── Syntax V11.6 upgrades ──
+      jsUnreachable: function (s) {
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          var lines = content.split("\n");
+          for (var i = 0; i < lines.length - 1; i++) {
+            var t = lines[i].trim();
+            if (/^(return|throw|break|continue)\b/.test(t) && !/;\s*\/\//.test(t)) {
+              var next = lines[i + 1].trim();
+              if (next && !/^[\}\)]/.test(next) && !/^\/[\/\*]/.test(next) && !/^(case|default)\b/.test(next) && next !== "else" && next !== "catch" && next !== "finally") {
+                if (/^(return|throw)\b/.test(t)) {
+                  self._add("medium", fname, i + 2, "syntax", "Unreachable code after return/throw",
+                    "Statements after return/throw never execute.",
+                    "Remove dead code or restructure control flow.",
+                    (t + " → " + next).slice(0, 100),
+                    "Delete or move the unreachable statement.", s,
+                    { confidence: 0.82, status: "LIKELY", simpleId: "js_unreachable",
+                      root_cause: "Control flow exits before subsequent statement",
+                      symptom: "Code after return/throw" });
+                  break;
+                }
+              }
+            }
+          }
+        });
+      },
+      jsAsiRisk: function (s) {
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          if (/return\s*\n\s*[\[\(\+\-]/.test(content) || /return\s*\n\s*[A-Za-z_$]/.test(content)) {
+            self._add("high", fname, 1, "syntax", "ASI return trap",
+              "Newline after return makes the function return undefined; following expression is a separate statement.",
+              "return value on the same line, or use parentheses.",
+              "return\\n <expr>",
+              "Put the returned expression on the same line as return.", s,
+              { confidence: 0.88, status: "CONFIRMED", simpleId: "js_asi_return",
+                root_cause: "Automatic Semicolon Insertion after return",
+                symptom: "return followed by newline then expression" });
+          }
+        });
+      },
+      jsDupKeys: function (s) {
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          var re = /\{\s*([^{}]{0,400})\}/g;
+          var m;
+          while ((m = re.exec(content))) {
+            var body = m[1];
+            var keys = body.match(/(?:["']?)([A-Za-z_$][\w$]*)(?:["']?)\s*:/g) || [];
+            var seen = {};
+            for (var i = 0; i < keys.length; i++) {
+              var k = keys[i].replace(/["'\s:]/g, "");
+              if (seen[k]) {
+                self._add("medium", fname, 1, "syntax", "Duplicate object key: " + k,
+                  "Later key overwrites earlier one; earlier value is dead.",
+                  "Unique keys in object literals.",
+                  k + " appears more than once",
+                  "Rename or remove the duplicate key.", s,
+                  { confidence: 0.78, status: "LIKELY", simpleId: "js_dup_key",
+                    root_cause: "Same property name declared twice",
+                    symptom: "Duplicate key in object literal" });
+                return;
+              }
+              seen[k] = 1;
+            }
+          }
+        });
+      },
+      jsAssignCond: function (s) {
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          var code = stripNoise(content);
+          var re = /\b(if|while|for)\s*\(\s*([A-Za-z_$][\w$]*)\s*=\s*[^=]/g);
+          var m;
+          while ((m = re.exec(code))) {
+            self._add("high", fname, 1, "syntax", "Assignment inside condition",
+              "Single '=' assigns and is always truthy for most values; usually meant '==='.",
+              "Use === or !== for comparison.",
+              m[0].slice(0, 60),
+              "Change = to === (or intentional assignment with extra parentheses).", s,
+              { confidence: 0.85, status: "LIKELY", simpleId: "js_assign_cond",
+                root_cause: "Assignment operator used where comparison was likely intended",
+                symptom: "if/while/for (x = ...)" });
+            break;
+          }
+        });
+      },
+      pyBareExcept: function (s) {
+        self._eachFile(["python"], function (fname, content) {
+          var lines = content.split("\n");
+          for (var i = 0; i < lines.length; i++) {
+            if (/^\s*except\s*:\s*(#.*)?$/.test(lines[i])) {
+              self._add("medium", fname, i + 1, "syntax", "Bare except clause",
+                "Catches SystemExit/KeyboardInterrupt and hides real bugs.",
+                "except Exception: or specific exception types.",
+                "except:",
+                "Catch a specific exception type.", s,
+                { confidence: 0.9, status: "CONFIRMED", simpleId: "py_bare_except",
+                  root_cause: "except: without exception type",
+                  symptom: "Bare except" });
+              break;
+            }
+          }
+        });
+      },
+      htmlDupId: function (s) {
+        self._eachFile(["html"], function (fname, content) {
+          var re = /\bid\s*=\s*["']([^"']+)["']/gi;
+          var seen = {}, m;
+          while ((m = re.exec(content))) {
+            var id = m[1];
+            if (seen[id]) {
+              self._add("high", fname, 1, "syntax", "Duplicate HTML id: " + id,
+                "IDs must be unique; getElementById returns only the first.",
+                "Unique id attributes.",
+                "id=\"" + id + "\" repeated",
+                "Rename one of the duplicate ids.", s,
+                { confidence: 0.92, status: "CONFIRMED", simpleId: "html_dup_id",
+                  root_cause: "Same id attribute used more than once",
+                  symptom: "Duplicate id in markup" });
+              return;
+            }
+            seen[id] = 1;
+          }
+        });
+      },
+      cssInvalidProp: function (s) {
+        self._eachFile(["css"], function (fname, content) {
+          if (/[;{]\s*[^\s:;/{}][^:]*[^a-zA-Z0-9_\-\s][^:]*:/.test(content)) {
+            self._add("low", fname, 1, "syntax", "Suspicious CSS property token",
+              "Property names with illegal characters are ignored by the browser.",
+              "Valid CSS identifiers for properties.",
+              "Odd characters in property name",
+              "Check for typos or missing semicolons.", s,
+              { confidence: 0.55, status: "POSSIBLE", simpleId: "css_invalid_prop" });
+          }
+        });
+      },
+      jsTemplateBalance: function (s) {
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          var code = content.replace(/\\`/g, "");
+          var ticks = (code.match(/`/g) || []).length;
+          if (ticks % 2 !== 0) {
+            self._add("high", fname, 1, "syntax", "Unbalanced template literal backticks",
+              "Odd number of backticks usually means a parse error.",
+              "Matching opening and closing `.",
+              ticks + " backticks",
+              "Close the template literal.", s,
+              { confidence: 0.86, status: "LIKELY", simpleId: "js_template_balance",
+                root_cause: "Unmatched backtick",
+                symptom: "Odd backtick count" });
+          }
+        });
+      },
+      jsonTrailingComma: function (s) {
+        self._eachFile(["json", "javascript"], function (fname, content) {
+          if (/,\s*[\]\}]/.test(content)) {
+            var lang = (fname || "").match(/\.json$/i) ? "json" : "js";
+            if (lang === "json") {
+              self._add("critical", fname, 1, "syntax", "Trailing comma in JSON",
+                "Standard JSON does not allow trailing commas — parse will fail.",
+                "No comma before ] or }.",
+                ",] or ,}",
+                "Remove the trailing comma.", s,
+                { confidence: 0.95, status: "CONFIRMED", simpleId: "json_trailing_comma",
+                  root_cause: "Trailing comma before closing bracket",
+                  symptom: ",] or ,} in JSON" });
+            }
+          }
+        });
+      },
+
       secEval: function (s) {
         self._eachFile(["javascript", "typescript", "html"], function (fname, content) {
           if (typeof ADStandards !== "undefined" && ADStandards.shouldSkipSecurityKeywordScan(fname)) return;
@@ -1876,6 +2045,154 @@ jsDotSpace: function (s) {
         });
       },
 
+      // ── Math V11.6 upgrades ──
+      mathModZero: function (s) {
+        self._eachFile(["javascript", "typescript", "python"], function (fname, content) {
+          var code = stripForMath(content);
+          if (/%\s*0(?:\.0+)?\b/.test(code)) {
+            self._add("high", fname, 1, "math", "Modulo by zero",
+              "n % 0 yields NaN in JS and raises ZeroDivisionError in Python.",
+              "Guard divisor !== 0 before modulo.",
+              "% 0",
+              "Check the divisor before using %.", s,
+              { confidence: 0.92, status: "CONFIRMED", simpleId: "math_modzero",
+                root_cause: "Literal zero used as modulo divisor",
+                symptom: "% 0 expression" });
+          }
+        });
+      },
+      mathFloatEq: function (s) {
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          var code = stripForMath(content);
+          if (/===?\s*0\.\d+|0\.\d+\s*===?/.test(code) || /!==?\s*0\.\d+|0\.\d+\s*!==?/.test(code)) {
+            self._add("medium", fname, 1, "math", "Floating-point equality comparison",
+              "Binary floats rarely compare equal after arithmetic (e.g. 0.1+0.2 !== 0.3).",
+              "Use epsilon: Math.abs(a-b) < 1e-9, or integer math.",
+              "=== with decimal literal",
+              "Compare with a small epsilon or work in integer units.", s,
+              { confidence: 0.75, status: "LIKELY", simpleId: "math_float_eq",
+                root_cause: "Direct equality on floating-point values",
+                symptom: "=== / !== with decimal literal" });
+          }
+        });
+      },
+      mathOverflow: function (s) {
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          if (/Number\.MAX_SAFE_INTEGER|MAX_VALUE\s*\*|<<\s*3[0-9]|>>>\s*3[0-9]/.test(content)) {
+            self._add("medium", fname, 1, "math", "Possible numeric overflow / precision loss",
+              "Values beyond Number.MAX_SAFE_INTEGER lose integer precision; large shifts are undefined-ish.",
+              "Use BigInt for large integers; validate shift counts.",
+              "MAX_SAFE_INTEGER or large bit shift",
+              "Switch to BigInt or clamp operations.", s,
+              { confidence: 0.65, status: "POSSIBLE", simpleId: "math_overflow",
+                root_cause: "Operations near IEEE-754 safe integer limits",
+                symptom: "MAX_SAFE_INTEGER or large shift" });
+          }
+        });
+      },
+      mathUnitMix: function (s) {
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          var lines = content.split("\n");
+          for (var i = 0; i < lines.length; i++) {
+            var line = lines[i];
+            if (/\b(ms|milliseconds|seconds|sec)\b/i.test(line) && /[*/]\s*\d+/.test(line)) {
+              if (/1000|60\b/.test(line)) continue; // likely intentional conversion
+              if (/timeout|delay|duration|interval/i.test(line) && /\*\s*1000|\/\s*1000/.test(line)) continue;
+              if (/timeout|delay|duration|setTimeout|setInterval/i.test(line) && !/1000|60/.test(line) && /\d{2,}/.test(line)) {
+                self._add("low", fname, i + 1, "math", "Possible time unit mix (ms vs s)",
+                  "Mixing seconds and milliseconds is a common off-by-1000 bug.",
+                  "Document units; convert explicitly (*1000 or /1000).",
+                  line.trim().slice(0, 80),
+                  "Confirm whether the value is ms or s.", s,
+                  { confidence: 0.5, status: "POSSIBLE", simpleId: "math_unit_mix",
+                    root_cause: "Ambiguous time unit in calculation",
+                    symptom: "timeout/duration without clear ms conversion" });
+                break;
+              }
+            }
+          }
+        });
+      },
+      mathAccum: function (s) {
+        self._eachFile(["javascript", "typescript", "python"], function (fname, content) {
+          if (/(?:let|var|const)\s+(\w+)\s*;/.test(content) && new RegExp(RegExp.$1 + "\\s*\\+=").test(content)) {
+            // weak heuristic — also check sum += without prior init 0
+          }
+          var m = content.match(/\b(sum|total|acc|accum|count)\s*\+=/i);
+          if (m) {
+            var name = m[1];
+            var initRe = new RegExp("(?:let|var|const|\\b)" + name + "\\s*=\\s*0\\b", "i");
+            if (!initRe.test(content) && !new RegExp("(?:let|var|const)\\s+" + name + "\\s*=").test(content)) {
+              self._add("medium", fname, 1, "math", "Accumulator may be uninitialized",
+                "Using += on an undeclared/undefined accumulator yields NaN.",
+                "Initialize sum/total to 0 before the loop.",
+                name + " += ...",
+                "Declare " + name + " = 0 before accumulation.", s,
+                { confidence: 0.7, status: "LIKELY", simpleId: "math_accum",
+                  root_cause: "Accumulation without visible zero init",
+                  symptom: name + " += without = 0" });
+            }
+          }
+        });
+      },
+      mathRandomSec: function (s) {
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          if (/Math\.random/.test(content) && /token|secret|password|otp|session|auth|key|nonce|csrf/i.test(content)) {
+            self._add("high", fname, 1, "math", "Math.random used near security-sensitive terms",
+              "Math.random is not cryptographically secure.",
+              "crypto.getRandomValues / window.crypto for tokens.",
+              "Math.random + token/secret context",
+              "Replace with crypto API for security-sensitive values.", s,
+              { confidence: 0.8, status: "LIKELY", simpleId: "math_random_sec",
+                root_cause: "Insecure PRNG for security context",
+                symptom: "Math.random near token/secret keywords" });
+          }
+        });
+      },
+      mathNegIndex: function (s) {
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          var lines = content.split("\n");
+          for (var i = 0; i < lines.length; i++) {
+            if (/\w+\s*\[\s*\w+\s*-\s*1\s*\]/.test(lines[i])) {
+              var window = (lines[Math.max(0, i - 2)] || "") + lines[i] + (lines[Math.min(lines.length - 1, i + 1)] || "");
+              if (!/>\s*0|>=\s*1|length\s*>|if\s*\(/.test(window)) {
+                self._add("medium", fname, i + 1, "math", "Possible negative index access",
+                  "arr[i-1] when i is 0 yields arr[-1] which is undefined (not last element).",
+                  "Guard i > 0 before arr[i-1].",
+                  lines[i].trim().slice(0, 80),
+                  "Add a lower-bound check before indexing i-1.", s,
+                  { confidence: 0.6, status: "POSSIBLE", simpleId: "math_neg_index",
+                    root_cause: "Index expression can be -1",
+                    symptom: "arr[i-1] without visible i>0 guard" });
+                break;
+              }
+            }
+          }
+        });
+      },
+      mathTaxDouble: function (s) {
+        self._eachFile(["javascript", "typescript"], function (fname, content) {
+          var code = stripForMath(content);
+          // e.g. price * 1.09 * 1.09 or amount * tax * tax
+          if (/\*\s*(0\.\d+|1\.\d+)\s*\*\s*\1/.test(code) ||
+              /\b(tax|vat|discount|rate)\b.*\b\1\b/i.test(content) && /\*\s*\w+\s*\*\s*\w+/.test(code)) {
+            var lines = content.split("\n");
+            for (var i = 0; i < lines.length; i++) {
+              if (/\*\s*(0\.\d+|1\.\d+)\s*\*\s*\1/.test(stripForMath(lines[i]))) {
+                self._add("high", fname, i + 1, "math", "Same rate applied twice",
+                  "Multiplying by the same factor twice double-counts tax/discount.",
+                  "Apply each rate once in the formula.",
+                  lines[i].trim().slice(0, 80),
+                  "Remove the duplicate multiplication.", s,
+                  { confidence: 0.85, status: "LIKELY", simpleId: "math_tax_double",
+                    root_cause: "Identical factor multiplied twice",
+                    symptom: "x * r * r pattern" });
+                return;
+              }
+            }
+          }
+        });
+      },
 
       mathIndepCheck: function (s) {
         // Validate pure arithmetic assignments against independent calculator
