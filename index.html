@@ -84,7 +84,7 @@
         <button type="button" class="icon-btn" id="langToggleBtn" title="زبان" data-lang-toggle>
           <span id="langLabel">FA</span>
         </button>
-        <button type="button" class="icon-btn menu-btn" id="menuBtn" aria-label="منو">
+        <button type="button" class="icon-btn menu-btn" id="menuBtn" aria-label="منو" title="باز کردن منو">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
       </div>
@@ -216,12 +216,12 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
           </button>
         </div>
-        <div class="worker-controls" id="workerControls">
+        <div class="worker-controls" id="workerControls" hidden>
           <button type="button" class="btn btn-ghost btn-sm" id="cancelBtn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
             <span data-i18n="cancel">لغو</span>
           </button>
-          <button type="button" class="btn btn-ghost btn-sm" id="resumeBtn">
+          <button type="button" class="btn btn-ghost btn-sm" id="resumeBtn" hidden>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
             <span data-i18n="resume">ادامه</span>
           </button>
@@ -264,35 +264,35 @@
             <span data-i18n="sevAll">همه</span>
           </button>
           <button type="button" class="sev-tab" data-sev="info">
-            <span class="sev-count" id="countInfo">۱۲</span>
+            <span class="sev-count" id="countInfo">0</span>
             <span data-i18n="sevInfo">اطلاعات</span>
           </button>
           <button type="button" class="sev-tab" data-sev="warning">
-            <span class="sev-count warn" id="countWarn">۷</span>
+            <span class="sev-count warn" id="countWarn">0</span>
             <span data-i18n="sevWarn">هشدار</span>
           </button>
           <button type="button" class="sev-tab" data-sev="critical">
-            <span class="sev-count crit" id="countCrit">۳</span>
+            <span class="sev-count crit" id="countCrit">0</span>
             <span data-i18n="sevCrit">بحرانی</span>
           </button>
         </div>
 
         <!-- Summary cards -->
         <div class="summary-cards" id="summaryCards">
-          <div class="sum-card sum-info">
-            <span class="sum-num" id="sumTotal">۲۲</span>
-            <span class="sum-label" data-i18n="sumTotal">اطلاعات</span>
+          <div class="sum-card sum-total">
+            <span class="sum-num" id="sumTotal">0</span>
+            <span class="sum-label" data-i18n="sumTotal">کل</span>
           </div>
           <div class="sum-card sum-warn">
-            <span class="sum-num" id="sumWarn">۷</span>
+            <span class="sum-num" id="sumWarn">0</span>
             <span class="sum-label" data-i18n="sumWarn">هشدار</span>
           </div>
           <div class="sum-card sum-crit">
-            <span class="sum-num" id="sumCrit">۳</span>
+            <span class="sum-num" id="sumCrit">0</span>
             <span class="sum-label" data-i18n="sumCrit">بحرانی</span>
           </div>
           <div class="sum-card sum-info2">
-            <span class="sum-num" id="sumInfo">۱۲</span>
+            <span class="sum-num" id="sumInfo">0</span>
             <span class="sum-label" data-i18n="sumInfo">اطلاعات</span>
           </div>
         </div>
@@ -301,6 +301,7 @@
         <select id="severityFilter" class="sr-only" aria-hidden="true">
           <option value="all">All</option>
           <option value="critical">Critical</option>
+          <option value="warning">Warning</option>
           <option value="high">High</option>
           <option value="medium">Medium</option>
           <option value="low">Low</option>
@@ -402,11 +403,17 @@
     (function () {
       function setTheme(t) {
         document.documentElement.setAttribute('data-theme', t);
-        try { localStorage.setItem('ad-theme', t); } catch (e) {}
+        // Unified key used by app.js / settings-page.js
+        try { localStorage.setItem('ad_theme', t); } catch (e) {}
+        try { localStorage.removeItem('ad-theme'); } catch (e) {}
       }
       var saved = null;
-      try { saved = localStorage.getItem('ad-theme'); } catch (e) {}
-      if (saved === 'clearspace' || saved === 'midnight') setTheme(saved);
+      try { saved = localStorage.getItem('ad_theme') || localStorage.getItem('ad-theme'); } catch (e) {}
+      if (saved === 'clearspace' || saved === 'midnight' || saved === 'light' || saved === 'dark') {
+        if (saved === 'light') saved = 'clearspace';
+        if (saved === 'dark') saved = 'midnight';
+        setTheme(saved);
+      }
 
       var themeBtn = document.getElementById('themeToggleBtn');
       if (themeBtn) {
@@ -437,7 +444,7 @@
         });
       });
 
-      // Severity tabs → severityFilter
+      // Severity tabs → severityFilter (map warning → medium+high so high is not lost)
       var sevFilter = document.getElementById('severityFilter');
       document.querySelectorAll('.sev-tab').forEach(function (tab) {
         tab.addEventListener('click', function () {
@@ -445,13 +452,39 @@
           tab.classList.add('active');
           if (sevFilter) {
             var v = tab.getAttribute('data-sev');
-            sevFilter.value = v === 'warning' ? 'medium' : (v === 'critical' ? 'critical' : (v === 'info' ? 'info' : 'all'));
+            // Keep semantic mapping; filter logic also handles "warning" as medium+high
+            sevFilter.value = v === 'warning' ? 'warning' : (v === 'critical' ? 'critical' : (v === 'info' ? 'info' : 'all'));
             sevFilter.dispatchEvent(new Event('change', { bubbles: true }));
           }
         });
       });
 
-      // Lang toggle quick button
+      // Mode cards keyboard navigation (role=radio group)
+      var modeCards = Array.prototype.slice.call(document.querySelectorAll('.mode-card'));
+      modeCards.forEach(function (card, idx) {
+        card.addEventListener('keydown', function (e) {
+          var nextIdx = -1;
+          if (e.key === 'ArrowRight' || e.key === 'ArrowDown') nextIdx = (idx + 1) % modeCards.length;
+          else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') nextIdx = (idx - 1 + modeCards.length) % modeCards.length;
+          else if (e.key === 'Home') nextIdx = 0;
+          else if (e.key === 'End') nextIdx = modeCards.length - 1;
+          else if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); card.click(); return; }
+          if (nextIdx >= 0) {
+            e.preventDefault();
+            modeCards[nextIdx].focus();
+            modeCards[nextIdx].click();
+          }
+        });
+      });
+
+      // menuBtn → open sidebar (same as sidebarOpen) — was a dead control
+      var menuBtn = document.getElementById('menuBtn');
+      var sidebarOpen = document.getElementById('sidebarOpen');
+      if (menuBtn && sidebarOpen) {
+        menuBtn.addEventListener('click', function () { sidebarOpen.click(); });
+      }
+
+      // Lang toggle quick button — use ADi18n when available
       var langBtn = document.getElementById('langToggleBtn');
       if (langBtn) {
         langBtn.addEventListener('click', function () {
@@ -461,7 +494,8 @@
           document.documentElement.dir = next === 'fa' ? 'rtl' : 'ltr';
           var label = document.getElementById('langLabel');
           if (label) label.textContent = next.toUpperCase();
-          if (window.I18n && window.I18n.setLang) window.I18n.setLang(next);
+          if (window.ADi18n && window.ADi18n.setLang) window.ADi18n.setLang(next);
+          else if (window.I18n && window.I18n.setLang) window.I18n.setLang(next);
         });
       }
     })();

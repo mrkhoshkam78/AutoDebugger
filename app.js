@@ -124,11 +124,14 @@
       "Test All": fa ? "همه دسته‌ها" : "Test All",
       "Code / Logic": fa ? "کد / منطق" : "Code / Logic",
       "Security": fa ? "امنیت" : "Security",
-      "Performance": fa ? "عملکرد" : "Performance",
-      "UI / UX": fa ? "رابط / تجربه" : "UI / UX",
       "Mathematical / Calculations": fa ? "ریاضی / محاسبات" : "Mathematical / Calculations",
-      "Storage / Database": fa ? "ذخیره / دیتابیس" : "Storage / Database",
-      "Syntax": fa ? "نحو" : "Syntax"
+      "Database / Storage": fa ? "دیتابیس / ذخیره" : "Database / Storage",
+      "Performance": fa ? "عملکرد" : "Performance",
+      "UI": fa ? "رابط کاربری (UI)" : "UI",
+      "UX": fa ? "تجربه کاربری (UX)" : "UX",
+      "Responsive behavior": fa ? "رفتار واکنش‌گرا" : "Responsive behavior",
+      "Syntax": fa ? "نحو (Syntax)" : "Syntax",
+      "Structure / Architecture": fa ? "ساختار / معماری" : "Structure / Architecture"
     };
     var catEl = document.getElementById("categorySelect");
     if (catEl && catEl.options) {
@@ -712,6 +715,7 @@
       if (cancelB) cancelB.hidden = false;
     } else {
       wc.hidden = true;
+      wc.style.display = "";
       if (pauseB) pauseB.hidden = false;
       if (resumeB) resumeB.hidden = true;
     }
@@ -952,16 +956,27 @@
     allProblems.forEach(function (p) { bySev[p.severity] = (bySev[p.severity] || 0) + 1; });
 
 
-    if (summaryCards) {
-      summaryCards.hidden = false;
-      summaryCards.innerHTML =
-        '<div class="card total"><div class="value">' + (summary.total_problems || 0) + '</div><div class="label">' + ADUtils.escapeHtml(ADi18n.t("total")) + "</div></div>" +
-        '<div class="card critical"><div class="value">' + (bySev.critical || 0) + '</div><div class="label">' + ADUtils.escapeHtml(ADi18n.t("critical")) + "</div></div>" +
-        '<div class="card high"><div class="value">' + (bySev.high || 0) + '</div><div class="label">' + ADUtils.escapeHtml(ADi18n.t("high")) + "</div></div>" +
-        '<div class="card medium"><div class="value">' + (bySev.medium || 0) + '</div><div class="label">' + ADUtils.escapeHtml(ADi18n.t("medium")) + "</div></div>" +
-        '<div class="card low"><div class="value">' + (bySev.low || 0) + '</div><div class="label">' + ADUtils.escapeHtml(ADi18n.t("low")) + "</div></div>" +
-        '<div class="card info"><div class="value">' + (bySev.info || 0) + '</div><div class="label">' + ADUtils.escapeHtml(ADi18n.t("info")) + "</div></div>";
-    }
+    // Keep HTML sum-card structure in sync (do not replace with mismatched classes)
+    var totalCount = summary.total_problems || allProblems.length || 0;
+    var warnCount = (bySev.medium || 0) + (bySev.high || 0) + (bySev.low || 0);
+    var critCount = bySev.critical || 0;
+    var infoCount = bySev.info || 0;
+    var elSumTotal = document.getElementById("sumTotal");
+    var elSumWarn = document.getElementById("sumWarn");
+    var elSumCrit = document.getElementById("sumCrit");
+    var elSumInfo = document.getElementById("sumInfo");
+    if (elSumTotal) elSumTotal.textContent = String(totalCount);
+    if (elSumWarn) elSumWarn.textContent = String(warnCount);
+    if (elSumCrit) elSumCrit.textContent = String(critCount);
+    if (elSumInfo) elSumInfo.textContent = String(infoCount);
+    // Severity tab badges
+    var elCountInfo = document.getElementById("countInfo");
+    var elCountWarn = document.getElementById("countWarn");
+    var elCountCrit = document.getElementById("countCrit");
+    if (elCountInfo) elCountInfo.textContent = String(infoCount);
+    if (elCountWarn) elCountWarn.textContent = String(warnCount);
+    if (elCountCrit) elCountCrit.textContent = String(critCount);
+    if (summaryCards) summaryCards.hidden = false;
 
     if (testList) {
       var tests = result.test_results || [];
@@ -1009,7 +1024,15 @@
     var file = fileFilter ? fileFilter.value : "all";
     var cat = categoryFilter ? categoryFilter.value : "all";
     var filtered = allProblems;
-    if (sev !== "all") filtered = filtered.filter(function (p) { return p.severity === sev; });
+    // Map UI tabs: warning = medium+high+low, critical, info, all
+    if (sev !== "all") {
+      filtered = filtered.filter(function (p) {
+        if (sev === "warning") return p.severity === "medium" || p.severity === "high" || p.severity === "low" || p.severity === "warning";
+        if (sev === "critical") return p.severity === "critical";
+        if (sev === "info") return p.severity === "info";
+        return p.severity === sev;
+      });
+    }
     if (file !== "all") filtered = filtered.filter(function (p) { return p.file_name === file; });
     if (cat !== "all") filtered = filtered.filter(function (p) {
       if (p.category === cat) return true;
@@ -1225,6 +1248,18 @@
     }
     if (t.closest("#startBtn")) {
       e.preventDefault();
+      var sb = document.getElementById("startBtn");
+      if (sb && sb.disabled) {
+        // UX: explain why Start is disabled
+        setStatus(ADi18n.t("needFiles") || "ابتدا فایل کد را آپلود کنید", "idle");
+        var uz = document.getElementById("uploadZone");
+        if (uz) {
+          uz.classList.add("dragover");
+          setTimeout(function () { uz.classList.remove("dragover"); }, 1200);
+          try { uz.focus(); } catch (fe) {}
+        }
+        return;
+      }
       try { startAnalysis(); } catch (err) { console.error(err); }
       return;
     }
@@ -1250,6 +1285,14 @@
       var ov2 = document.getElementById("sidebarOverlay");
       if (side2) side2.classList.remove("open");
       if (ov2) { ov2.hidden = true; ov2.classList.remove("show", "open"); }
+      return;
+    }
+    // Dead nav links (Projects / History / Search) — give clear UX feedback instead of silent #
+    var deadNav = t.closest('a.nav-item[href="#"], a.bnav-item[href="#"]');
+    if (deadNav) {
+      e.preventDefault();
+      var msg = (typeof ADi18n !== "undefined" && ADi18n.t) ? ADi18n.t("navComingSoon") : "Coming soon";
+      setStatus(msg, "idle");
       return;
     }
   }, true);

@@ -457,6 +457,7 @@ html[dir="ltr"] .select-wrap select { padding: 10px 36px 10px 36px; }
 .worker-controls {
   display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
 }
+.worker-controls[hidden] { display: none !important; }
 .worker-controls .btn { min-width: 90px; }
 
 .progress-wrap { margin-top: 16px; }
@@ -516,6 +517,7 @@ html[dir="ltr"] .select-wrap select { padding: 10px 36px 10px 36px; }
 .sum-num { font-size: 1.35rem; font-weight: 700; line-height: 1.2; }
 .sum-label { font-size: 11px; color: var(--text-faint); }
 .sum-info .sum-num, .sum-info2 .sum-num { color: var(--info); }
+.sum-total .sum-num { color: var(--accent); }
 .sum-warn .sum-num { color: var(--warning); }
 .sum-crit .sum-num { color: var(--danger); }
 
